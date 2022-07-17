@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import time
 import sys
 
@@ -13,7 +13,7 @@ def image_viewer(image_file):
     # Configuration for the matrix
     options = RGBMatrixOptions()
     options.rows = 64  #TODO change this to 128 when all 4 are hooked up
-    options.columns = 128
+    options.cols = 128
     options.chain_length = 1
     options.parallel = 1
     options.hardware_mapping = 'regular'  # If you have an Adafruit HAT: 'adafruit-hat'
