@@ -4,26 +4,19 @@ import sys
 
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 from PIL import Image
+import config
 
 
 def image_viewer(image_file):
 
     image = Image.open(image_file)
 
-    # Configuration for the matrix
-    options = RGBMatrixOptions()
-    options.rows = 64  #TODO change this to 128 when all 4 are hooked up
-    options.cols = 128
-    options.chain_length = 1
-    options.parallel = 1
-    options.hardware_mapping = 'regular'  # If you have an Adafruit HAT: 'adafruit-hat'
+    matrix = config.Matrix()
+    # image.thumbnail((matrix.width, matrix.height), Image.ANTIALIAS)
+    image = image.convert("RGB")
+    # image = crop_and_pad(image)
 
-    matrix = RGBMatrix(options = options)
-
-    # Make image fit our screen.
-    image.thumbnail((matrix.width, matrix.height), Image.ANTIALIAS)
-
-    matrix.SetImage(image.convert('RGB'))
+    matrix.SetImage(image)
 
     try:
         print("Press CTRL-C to stop.")
