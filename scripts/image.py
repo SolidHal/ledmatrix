@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from PIL import Image, ImageDraw, ImageFont, GifImagePlugin
 from rgbmatrix import graphics
-import overlays
+import overlay
 import color
 
 
@@ -87,8 +87,7 @@ def frames_to_canvases(frames, matrix, overlays=[], overlay_args=()):
     canvases = []
     for frame in frames:
         # apply our overlays first
-        for overlay in overlays:
-            overlay(frame, *overlay_args)
+        frame = overlay.apply_overlays(frame, overlays, overlay_args)
 
         canvas = matrix.CreateFrameCanvas()
         canvas.SetImage(frame)

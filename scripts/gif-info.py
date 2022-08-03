@@ -12,7 +12,7 @@ import concurrent.futures
 
 import config
 import image
-import overlays
+import overlay
 import color
 from epoch import Epoch
 
@@ -58,9 +58,6 @@ def gif_info(image_file):
                 cur_frame += 1
 
             if epoch < Epoch():
-                # swap our canvases to the next set
-                # assumes the producer can create a set of canvases in < 1 minute
-                # otherwise we will drain the queue and error
                 logging.info(f"Time to swap, old epoch {epoch}")
                 #TODO do we need to add the epoch to the canvases set so we know we are pulling
                 # the canvas set for the epoch we expect?
@@ -71,23 +68,17 @@ def gif_info(image_file):
     def prepare_canvases(frames, canvases_queue, epoch, ready_event):
         logging.info("Starting prepare_canvases loop")
 
-        canvases = image.frames_to_canvases(frames, matrix, overlays=[overlays.overlay_clock], overlay_args=(dom_colors, epoch))
+        canvases = image.frames_to_canvases(frames, matrix, overlays=[overlay.overlay_clock], overlay_args=(dom_colors, epoch))
         logging.info(f"Putting canvases on the queue at epoch {epoch}")
         canvases_queue.put(canvases)
         logging.info(f"Put canvases on the queue at epoch {epoch}")
         epoch.next()
 
-
-        canvases = image.frames_to_canvases(frames, matrix, overlays=[overlays.overlay_clock], overlay_args=(dom_colors, epoch))
-        logging.info(f"Putting canvases on the queue at epoch {epoch}")
-        canvases_queue.put(canvases)
-        logging.info(f"Put canvases on the queue at epoch {epoch}")
-        epoch.next()
-
+        logging.info("Setting ready")
         ready_event.set()
 
         while(True):
-            canvases = image.frames_to_canvases(frames, matrix, overlays=[overlays.overlay_clock], overlay_args=(dom_colors, epoch))
+            canvases = image.frames_to_canvases(frames, matrix, overlays=[overlay.overlay_clock], overlay_args=(dom_colors, epoch))
             logging.info(f"Putting canvases on the queue at epoch {epoch}")
             canvases_queue.put(canvases)
             logging.info(f"Put canvases on the queue at epoch {epoch}")
@@ -96,11 +87,25 @@ def gif_info(image_file):
     #TODO provide way to pre-process gifs and load/store them on disk
     try:
         print("Press CTRL-C to stop.")
-        canvases_queue = Queue(maxsize=4)
+        # need a queue big enough to handle our producer thread not getting scheduled for long
+        # periods, but if its too big we waste memory
+
+        #TODO when handling large gifs (like lighthouse)
+        # the producer ends up unscheduled for long periods
+        # which means the consumer eventually drains the queue
+        canvases_queue = Queue(5)
         ready_event = Event()
 
+
+        epoch = Epoch()
+        canvases = image.frames_to_canvases(frames, matrix, overlays=[overlay.overlay_clock], overlay_args=(dom_colors, epoch))
+        logging.info(f"Putting canvases on the queue at epoch {epoch}")
+        canvases_queue.put(canvases)
+        logging.info(f"Put canvases on the queue at epoch {epoch}")
+        epoch.next()
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            executor.submit(prepare_canvases, frames, canvases_queue, Epoch(), ready_event)
+            executor.submit(prepare_canvases, frames, canvases_queue, epoch, ready_event)
             executor.submit(framebuffer_handler, canvases_queue, Epoch(), ready_event)
 
         while(True):

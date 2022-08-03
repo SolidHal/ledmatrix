@@ -10,6 +10,15 @@ from epoch import Epoch
 # - colors : the colors to use for the overlay
 # - epoch : the Epoch() to create this overlay for, stored in minutes
 
+def apply_overlays(frame, overlays=[], overlay_args=()):
+    # apply any provided overlays
+    # overlay_args is a tuple of arguments to pass to the overlay functions
+    overlaid_im = frame
+    for overlay in overlays:
+        overlaid_im = overlay(overlaid_im, *overlay_args)
+
+    return overlaid_im
+
 
 def overlay_clock(im, colors, epoch):
     if not len(colors) >= 3:
@@ -25,5 +34,6 @@ def overlay_clock(im, colors, epoch):
     time_str = time.strftime("%I:%M", time.localtime(epoch.seconds()))
     # use a color we know will contrast wtih the rectangle fill color for the time
     draw.text((1,0), time_str, font=font, fill=color.contrast_color_bw(colors[0]))
-    im.paste(overlay_im, (0,0))
-    return im
+    im_copy = im.copy()
+    im_copy.paste(overlay_im, (0,0))
+    return im_copy
