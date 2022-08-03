@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from PIL import Image, ImageDraw, ImageFont, GifImagePlugin
 from rgbmatrix import graphics
+import asyncio
 import overlay
 import color
 
@@ -80,7 +81,7 @@ def centerfit_gif(gif, matrix, fill_matrix):
         frames.append(frame)
     return frames
 
-def frames_to_canvases(frames, matrix, overlays=[], overlay_args=()):
+async def frames_to_canvases(frames, matrix, overlays=[], overlay_args=()):
     # Process the provided frames to a set of canvases
     # apply any provided overlays
     # overlay_args is a tuple of arguments to pass to the overlay functions
@@ -92,6 +93,8 @@ def frames_to_canvases(frames, matrix, overlays=[], overlay_args=()):
         canvas = matrix.CreateFrameCanvas()
         canvas.SetImage(frame)
         canvases.append(canvas)
+        # sleep for a millisecond to avoid blocking for too long
+        await asyncio.sleep(0.001)
 
     return canvases
 

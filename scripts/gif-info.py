@@ -6,6 +6,7 @@ from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
 from PIL import Image, GifImagePlugin, ImageDraw
 from threading import Thread, Event
 from queue import Queue
+import asyncio
 import logging
 import copy
 import concurrent.futures
@@ -26,7 +27,7 @@ from epoch import Epoch
 
 logging.basicConfig(level=logging.INFO, format='(%(threadName)-9s) %(message)s',)
 
-def gif_info(image_file):
+async def gif_info(image_file):
     gif = Image.open(image_file)
     matrix = config.Matrix()
     # pre process our frames so we can dedicate our resources to displaying them later
@@ -34,10 +35,16 @@ def gif_info(image_file):
     dom_colors = color.dominant_colors_gif(gif)
     frames = image.centerfit_gif(gif, matrix, fill_matrix)
     # Close the gif file to save memory now that we have copied out all of the frames
+    logging.info(f"Gif has {gif.n_frames} frames")
     gif.close()
 
 
-    def framebuffer_handler(canvases_queue, epoch, ready_event):
+    async def framebuffer_handler(canvases_queue, epoch, ready_event):
+
+        async def SwapOnVSync(canvas, framerate_fraction):
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None,  matrix.SwapOnVSync, canvas, framerate_fraction)
+
         logging.info("in framebuffer_handler")
         # play gifs at 6 fps
         fps = 8
@@ -45,13 +52,13 @@ def gif_info(image_file):
         cur_frame = 0
 
         # let the producer prepare some canvases first
-        ready_event.wait()
+        await ready_event.wait()
         logging.info(f"Starting framebuffer_handler loop at epoch {epoch}")
-        canvases = canvases_queue.get_nowait()
+        canvases = await canvases_queue.get()
         while(True):
             canvas = canvases[cur_frame]
             # blocks until it can swap in the next canvas
-            matrix.SwapOnVSync(canvas, framerate_fraction)
+            await SwapOnVSync(canvas, framerate_fraction)
             if cur_frame == len(canvases) - 1:
                 cur_frame = 0
             else:
@@ -65,12 +72,19 @@ def gif_info(image_file):
                 epoch = Epoch()
                 logging.info(f"swapped to new epoch {epoch}")
 
-    def prepare_canvases(frames, canvases_queue, epoch, ready_event):
+    async def prepare_canvases(frames, canvases_queue, epoch, ready_event):
         logging.info("Starting prepare_canvases loop")
 
-        canvases = image.frames_to_canvases(frames, matrix, overlays=[overlay.overlay_clock], overlay_args=(dom_colors, epoch))
+        #TODO put this in a function
+        canvases = await image.frames_to_canvases(frames, matrix, overlays=[overlay.overlay_clock], overlay_args=(dom_colors, epoch))
         logging.info(f"Putting canvases on the queue at epoch {epoch}")
-        canvases_queue.put(canvases)
+        await canvases_queue.put(canvases)
+        logging.info(f"Put canvases on the queue at epoch {epoch}")
+        epoch.next()
+
+        canvases = await image.frames_to_canvases(frames, matrix, overlays=[overlay.overlay_clock], overlay_args=(dom_colors, epoch))
+        logging.info(f"Putting canvases on the queue at epoch {epoch}")
+        await canvases_queue.put(canvases)
         logging.info(f"Put canvases on the queue at epoch {epoch}")
         epoch.next()
 
@@ -78,9 +92,9 @@ def gif_info(image_file):
         ready_event.set()
 
         while(True):
-            canvases = image.frames_to_canvases(frames, matrix, overlays=[overlay.overlay_clock], overlay_args=(dom_colors, epoch))
+            canvases = await image.frames_to_canvases(frames, matrix, overlays=[overlay.overlay_clock], overlay_args=(dom_colors, epoch))
             logging.info(f"Putting canvases on the queue at epoch {epoch}")
-            canvases_queue.put(canvases)
+            await canvases_queue.put(canvases)
             logging.info(f"Put canvases on the queue at epoch {epoch}")
             epoch.next()
 
@@ -93,23 +107,14 @@ def gif_info(image_file):
         #TODO when handling large gifs (like lighthouse)
         # the producer ends up unscheduled for long periods
         # which means the consumer eventually drains the queue
-        canvases_queue = Queue(5)
-        ready_event = Event()
+        canvases_queue = asyncio.Queue(5)
+        ready_event = asyncio.Event()
 
+        producer = asyncio.create_task(prepare_canvases(frames, canvases_queue, Epoch(), ready_event))
+        consumer = asyncio.create_task(framebuffer_handler(canvases_queue, Epoch(), ready_event))
+        await asyncio.gather(producer, consumer)
+        await canvases_queue.join()
 
-        epoch = Epoch()
-        canvases = image.frames_to_canvases(frames, matrix, overlays=[overlay.overlay_clock], overlay_args=(dom_colors, epoch))
-        logging.info(f"Putting canvases on the queue at epoch {epoch}")
-        canvases_queue.put(canvases)
-        logging.info(f"Put canvases on the queue at epoch {epoch}")
-        epoch.next()
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            executor.submit(prepare_canvases, frames, canvases_queue, epoch, ready_event)
-            executor.submit(framebuffer_handler, canvases_queue, Epoch(), ready_event)
-
-        while(True):
-            time.sleep(60000)
 
 
     except KeyboardInterrupt:
@@ -121,4 +126,4 @@ if __name__ == "__main__":
         sys.exit("Require an image argument")
     else:
         image_file = sys.argv[1]
-    gif_info(image_file)
+    asyncio.run(gif_info(image_file))
