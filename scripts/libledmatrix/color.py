@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from libledmatrix import image_processing
+
 def invert_color(color):
     return (255 - color[0], 255 - color[1], 255 - color[2])
 
@@ -36,16 +38,8 @@ def contrast_color_bw(color, inverse=False):
     return black
 
 
-def convertRGB(im):
-    # must convert to RGB so the mode is correct
-    # for the following operations
-    # not doing so either results in a B&W image
-    # or green bars
-    # the matrix API expects an RGB image anyway
-    return im.convert('RGB')
-
 def dominant_colors(im):
-    im = convertRGB(im)
+    im = image_processing.convertRGB(im)
     colors = im.getcolors()
     colors.sort(key = lambda x: x[0], reverse = True)
     # what if we don't have 3 colors? Return first color instead

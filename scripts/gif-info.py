@@ -4,12 +4,7 @@ import sys
 
 from PIL import Image, GifImagePlugin
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
-
-import config
-import color
-import display
-import image
-
+from libledmatrix import config, color, display, image_processing
 
 #TODO:
 # add weather overlay to animated_overlaid
@@ -31,7 +26,7 @@ def gif_info(image_file):
     dom_colors = color.dominant_colors_gif(gif)
     fill_matrix = False
     # pre process our frames so we can dedicate our resources to displaying them later
-    frames = image.centerfit_gif(gif, matrix, fill_matrix)
+    frames = image_processing.centerfit_gif(gif, matrix, fill_matrix)
     # Close the gif file to save memory now that we have copied out all of the frames
     print(f"Gif has {gif.n_frames} frames")
     gif.close()

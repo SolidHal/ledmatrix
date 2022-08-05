@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-from PIL import Image, ImageDraw, ImageFont, GifImagePlugin
 import time
-import color
-from epoch import Epoch
+from PIL import Image, ImageDraw, ImageFont, GifImagePlugin
+
+from libledmatrix import color, epoch
 
 
 ## Overlay args:
@@ -26,7 +26,7 @@ def overlay_clock(im, colors, epoch):
 
     rect_height = 14
     rect_width = 32
-    font = ImageFont.load("pillow-fonts/helvR12.pil")
+    font = ImageFont.load("libledmatrix/pillow-fonts/helvR12.pil")
     overlay_im = Image.new("RGB", (rect_width+1, rect_height+1))
     draw = ImageDraw.Draw(overlay_im)
     # use the 1st and 2nd most dominant colors for the rectangle & frame

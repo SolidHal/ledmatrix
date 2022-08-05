@@ -4,16 +4,12 @@ import logging
 
 from rgbmatrix import RGBMatrix
 
-import config
-import image
-import overlay
-from epoch import Epoch
+from libledmatrix import config, image_processing, overlay, epoch
 
-
-# display a set of frames with overlays which update every epoch
+# display a set of frames with overlays which update every cur_epoch
 def animated_overlaid(matrix, frames, colors):
     logging.basicConfig(level=logging.INFO,)
-    async def framebuffer_handler(matrix, canvases_queue, epoch, ready_event):
+    async def framebuffer_handler(matrix, canvases_queue, cur_epoch, ready_event):
 
         async def SwapOnVSync(canvas, framerate_fraction):
             loop = asyncio.get_event_loop()
@@ -23,7 +19,7 @@ def animated_overlaid(matrix, frames, colors):
         cur_frame = 0
         # let the producer prepare some canvases first
         await ready_event.wait()
-        logging.info(f"Starting framebuffer_handler loop at epoch {epoch}")
+        logging.info(f"Starting framebuffer_handler loop at cur_epoch {cur_epoch}")
         canvases = await canvases_queue.get()
         while(True):
             canvas = canvases[cur_frame]
@@ -34,27 +30,27 @@ def animated_overlaid(matrix, frames, colors):
             else:
                 cur_frame += 1
 
-            if epoch < Epoch():
-                logging.info(f"Time to swap, old epoch {epoch}")
-                #TODO do we need to add the epoch to the canvases set so we know we are pulling
-                # the canvas set for the epoch we expect?
+            if cur_epoch < epoch.Epoch():
+                logging.info(f"Time to swap, old cur_epoch {cur_epoch}")
+                #TODO do we need to add the cur_epoch to the canvases set so we know we are pulling
+                # the canvas set for the cur_epoch we expect?
                 canvases = canvases_queue.get_nowait()
-                epoch = Epoch()
-                logging.info(f"swapped to new epoch {epoch}")
+                cur_epoch = epoch.Epoch()
+                logging.info(f"swapped to new cur_epoch {cur_epoch}")
 
-    async def prepare_canvases(matrix, frames, colors, canvases_queue, epoch, ready_event):
+    async def prepare_canvases(matrix, frames, colors, canvases_queue, cur_epoch, ready_event):
         logging.info("Starting prepare_canvases loop")
 
         async def enqueue():
-            canvases = await image.frames_to_canvases(frames, matrix, overlays=[overlay.overlay_clock], overlay_args=(colors, epoch))
-            logging.info(f"Putting canvases on the queue at epoch {epoch}")
+            canvases = await image_processing.frames_to_canvases(frames, matrix, overlays=[overlay.overlay_clock], overlay_args=(colors, cur_epoch))
+            logging.info(f"Putting canvases on the queue at cur_epoch {cur_epoch}")
             await canvases_queue.put(canvases)
-            logging.info(f"Put canvases on the queue at epoch {epoch}")
-            epoch.next()
+            logging.info(f"Put canvases on the queue at cur_epoch {cur_epoch}")
+            cur_epoch.next()
 
-        # prepare 2 epochs before we let the consumer know we are ready
+        # prepare 2 cur_epochs before we let the consumer know we are ready
         # this is to handle the case where we start at 11:40:59
-        # and the consumer immediately needs the next epoch
+        # and the consumer immediately needs the next cur_epoch
         await enqueue()
         await enqueue()
 
@@ -72,11 +68,11 @@ def animated_overlaid(matrix, frames, colors):
                                                         frames=frames,
                                                         colors=colors,
                                                         canvases_queue=canvases_queue,
-                                                        epoch=Epoch(),
+                                                        cur_epoch=epoch.Epoch(),
                                                         ready_event=ready_event))
         consumer = asyncio.create_task(framebuffer_handler(matrix=matrix,
                                                            canvases_queue=canvases_queue,
-                                                           epoch=Epoch(),
+                                                           cur_epoch=epoch.Epoch(),
                                                            ready_event=ready_event))
         await asyncio.gather(producer, consumer)
         await canvases_queue.join()
@@ -88,7 +84,7 @@ def animated_overlaid(matrix, frames, colors):
 
 # display a set of frames
 def animated(matrix, frames):
-    canvases = image.frames_to_canvases(frames, matrix)
+    canvases = image_processing.frames_to_canvases(frames, matrix)
     cur_frame = 0
     while(True):
         canvas = canvases[cur_frame]
@@ -99,9 +95,9 @@ def animated(matrix, frames):
             cur_frame += 1
 
 
-# display a still image on the matrix with overlays which update every epoch
+# display a still image on the matrix with overlays which update every cur_epoch
 def static_overlaid(matrix, image):
-    image = image.convert("RGB")
+    image = image_processing.convert("RGB")
     matrix.SetImage(image)
 
 # display a still image on the matrix
