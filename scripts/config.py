@@ -2,9 +2,14 @@
 
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 
+# matrix options
 brightness = 50
 luminance_correct=True
 refresh_rate=90
+
+# display options
+fps = 8 # fps for animations on the display
+framerate_fraction = refresh_rate / fps
 
 # Global config to be used for all scripts
 def Matrix():

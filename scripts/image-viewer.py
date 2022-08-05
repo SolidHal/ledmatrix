@@ -2,9 +2,10 @@
 import time
 import sys
 
-from rgbmatrix import RGBMatrix, RGBMatrixOptions
+from rgbmatrix import RGBMatrix
 from PIL import Image
 import config
+import display
 
 
 def image_viewer(image_file):
@@ -12,14 +13,10 @@ def image_viewer(image_file):
     image = Image.open(image_file)
 
     matrix = config.Matrix()
-    # image.thumbnail((matrix.width, matrix.height), Image.ANTIALIAS)
-    image = image.convert("RGB")
-    # image = crop_and_pad(image)
-
-    matrix.SetImage(image)
 
     try:
         print("Press CTRL-C to stop.")
+        display.static(matrix, image)
         while True:
             time.sleep(100)
     except KeyboardInterrupt:

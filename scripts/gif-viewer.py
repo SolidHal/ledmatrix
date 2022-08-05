@@ -13,23 +13,13 @@ def gif_viewer(image_file):
     # pre process our frames so we can dedicate our resources to displaying them later
     fill_matrix = False
     frames = image.centerfit_gif(gif, matrix, fill_matrix)
-    canvases = image.frames_to_canvases(frames, matrix)
-
     # Close the gif file to save memory now that we have copied out all of the frames
     gif.close()
 
     #TODO provide way to pre-process gifs and load/store them on disk
     try:
         print("Press CTRL-C to stop.")
-
-        cur_frame = 0
-        while(True):
-            canvas = canvases[cur_frame]
-            matrix.SwapOnVSync(canvas, 15)
-            if cur_frame == len(canvases) - 1:
-                cur_frame = 0
-            else:
-                cur_frame += 1
+        display.animated(matrix, frames)
 
     except KeyboardInterrupt:
         sys.exit(0)
