@@ -3,15 +3,8 @@ from PIL import Image, ImageDraw, ImageFont, GifImagePlugin
 from rgbmatrix import graphics
 import asyncio
 
-from libledmatrix import color, overlay
+from libledmatrix import epoch, image_color, overlay
 
-def convertRGB(im):
-    # must convert to RGB so the mode is correct
-    # for the following operations
-    # not doing so either results in a B&W image
-    # or green bars
-    # the matrix API expects an RGB image anyway
-    return im.convert('RGB')
 
 # center crop the image on our matrix
 def crop(im, width, height):
@@ -64,7 +57,7 @@ def resize_crop_pad_gif(gif, matrix, fill_matrix):
 
         # resize before converting colorspace to maintain as much color info as possible
         frame = resize(frame, matrix, fill_matrix)
-        frame = convertRGB(frame)
+        frame = image_color.convertRGB(frame)
         frame = crop_and_pad(frame, matrix)
 
         canvas = matrix.CreateFrameCanvas()
@@ -83,7 +76,7 @@ def centerfit_gif(gif, matrix, fill_matrix):
         frame = gif.copy()
         # resize before converting colorspace to maintain as much color info as possible
         frame = resize(frame, matrix, fill_matrix)
-        frame = convertRGB(frame)
+        frame = image_color.convertRGB(frame)
         frame = crop_and_pad(frame, matrix)
         frames.append(frame)
     return frames
@@ -95,7 +88,7 @@ async def frames_to_canvases(frames, matrix, overlays=[], overlay_args=()):
     canvases = []
     for frame in frames:
         # apply our overlays first
-        frame = overlay.apply_overlays(frame, overlays, overlay_args)
+        frame = await overlay.apply_overlays(frame, overlays, overlay_args)
 
         canvas = matrix.CreateFrameCanvas()
         canvas.SetImage(frame)

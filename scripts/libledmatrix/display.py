@@ -4,16 +4,15 @@ import logging
 
 from rgbmatrix import RGBMatrix
 
-from libledmatrix import config, image_processing, overlay, epoch
+from libledmatrix import image_processing, image_color, overlay, epoch, config
 
 # display a set of frames with overlays which update every cur_epoch
-def animated_overlaid(matrix, frames, colors):
-    logging.basicConfig(level=logging.INFO,)
-    async def framebuffer_handler(matrix, canvases_queue, cur_epoch, ready_event):
+def animated_overlaid(cfg, frames, colors):
+    async def framebuffer_handler(cfg, canvases_queue, cur_epoch, ready_event):
 
         async def SwapOnVSync(canvas, framerate_fraction):
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None,  matrix.SwapOnVSync, canvas, framerate_fraction)
+            await loop.run_in_executor(None,  cfg.matrix.SwapOnVSync, canvas, framerate_fraction)
 
         logging.info("in framebuffer_handler")
         cur_frame = 0
@@ -24,7 +23,7 @@ def animated_overlaid(matrix, frames, colors):
         while(True):
             canvas = canvases[cur_frame]
             # blocks until it can swap in the next canvas
-            await SwapOnVSync(canvas, config.framerate_fraction)
+            await SwapOnVSync(canvas, cfg.framerate_fraction)
             if cur_frame == len(canvases) - 1:
                 cur_frame = 0
             else:
@@ -38,11 +37,11 @@ def animated_overlaid(matrix, frames, colors):
                 cur_epoch = epoch.Epoch()
                 logging.info(f"swapped to new cur_epoch {cur_epoch}")
 
-    async def prepare_canvases(matrix, frames, colors, canvases_queue, cur_epoch, ready_event):
+    async def prepare_canvases(cfg, frames, colors, canvases_queue, cur_epoch, ready_event):
         logging.info("Starting prepare_canvases loop")
 
         async def enqueue():
-            canvases = await image_processing.frames_to_canvases(frames, matrix, overlays=[overlay.overlay_clock], overlay_args=(colors, cur_epoch))
+            canvases = await image_processing.frames_to_canvases(frames, cfg.matrix, overlays=[overlay.overlay_clock, overlay.overlay_weather], overlay_args=(cfg, colors, cur_epoch))
             logging.info(f"Putting canvases on the queue at cur_epoch {cur_epoch}")
             await canvases_queue.put(canvases)
             logging.info(f"Put canvases on the queue at cur_epoch {cur_epoch}")
@@ -60,17 +59,17 @@ def animated_overlaid(matrix, frames, colors):
         while(True):
             await enqueue()
 
-    async def run(matrix, frames, colors):
+    async def run(cfg, frames, colors):
         canvases_queue = asyncio.Queue(5)
         ready_event = asyncio.Event()
 
-        producer = asyncio.create_task(prepare_canvases(matrix=matrix,
+        producer = asyncio.create_task(prepare_canvases(cfg=cfg,
                                                         frames=frames,
                                                         colors=colors,
                                                         canvases_queue=canvases_queue,
                                                         cur_epoch=epoch.Epoch(),
                                                         ready_event=ready_event))
-        consumer = asyncio.create_task(framebuffer_handler(matrix=matrix,
+        consumer = asyncio.create_task(framebuffer_handler(cfg=cfg,
                                                            canvases_queue=canvases_queue,
                                                            cur_epoch=epoch.Epoch(),
                                                            ready_event=ready_event))
@@ -78,17 +77,17 @@ def animated_overlaid(matrix, frames, colors):
         await canvases_queue.join()
 
 
-    asyncio.run(run(matrix, frames, colors))
+    asyncio.run(run(cfg, frames, colors))
 
 
 
 # display a set of frames
-def animated(matrix, frames):
-    canvases = image_processing.frames_to_canvases(frames, matrix)
+def animated(cfg, frames):
+    canvases = image_processing.frames_to_canvases(frames, cfg.matrix)
     cur_frame = 0
     while(True):
         canvas = canvases[cur_frame]
-        matrix.SwapOnVSync(canvas, config.framerate_fraction)
+        cfg.matrix.SwapOnVSync(canvas, config.framerate_fraction)
         if cur_frame == len(canvases) - 1:
             cur_frame = 0
         else:

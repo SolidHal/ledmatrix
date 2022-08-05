@@ -2,17 +2,7 @@
 
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 
-# matrix options
-brightness = 50
-luminance_correct=True
-refresh_rate=90
-
-# display options
-fps = 8 # fps for animations on the display
-framerate_fraction = refresh_rate / fps
-
-# Global config to be used for all scripts
-def Matrix():
+def Matrix(refresh_rate, brightness, luminance_correct):
     options = RGBMatrixOptions()
     # Configuration for the matrix
     options.rows = 64
@@ -34,3 +24,26 @@ def Matrix():
     # print(f"matrix height = {matrix.height}")
 
     return matrix
+
+
+# Global config to be used for all scripts
+class Config():
+    # matrix options
+    brightness = 50
+    luminance_correct=True
+    refresh_rate=90
+
+    # display options
+    fps = 8 # fps for animations on the display
+    framerate_fraction = refresh_rate / fps
+
+    # weather overlay options
+    weather_api_key = None
+    # tuple of (lat, lon)
+    weather_api_lat_lon = None
+    updated_epoch = None
+    cached_weather = None
+
+    # RGBMatrix
+    matrix = Matrix(refresh_rate, brightness, luminance_correct)
+

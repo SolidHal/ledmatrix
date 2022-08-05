@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 import time
 
+def delta(base_epoch, epoch_delta):
+    d = Epoch()
+    d._min = base_epoch._min + epoch_delta
+    return d
+
+
 class Epoch():
     def __init__(self):
         self._min = time.time() // 60
