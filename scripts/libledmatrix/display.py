@@ -2,9 +2,9 @@
 import asyncio
 import logging
 
-from rgbmatrix import RGBMatrix
-
-from libledmatrix import image_processing, image_color, overlay, epoch, config
+from libledmatrix import image_processing, image_color, overlay, epoch
+#TODO importing config before other modules breaks imports for some reason
+from . import config
 
 # display a set of frames with overlays which update every cur_epoch
 def animated_overlaid(cfg, frames, colors):

@@ -3,7 +3,7 @@ from PIL import Image, ImageDraw, ImageFont, GifImagePlugin
 from rgbmatrix import graphics
 import asyncio
 
-from libledmatrix import epoch, image_color, overlay
+from . import epoch, image_color, overlay
 
 
 # center crop the image on our matrix

@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
+
+import sys
 import time
 import httpx
 import json
 import logging
 from PIL import Image, ImageDraw, ImageFont, GifImagePlugin
 
-from libledmatrix import config, epoch, image_color
+from . import weather, image_color, epoch
+#TODO importing config before other modules breaks imports for some reason
+from . import config
 
 ## Overlay args:
 # - im : the image to place the overlay on
@@ -40,58 +44,45 @@ async def overlay_clock(im, cfg, colors, target_epoch):
     # use a color we know will contrast wtih the rectangle fill color for the time
     draw.text((1,0), time_str, font=font, fill=image_color.contrast_color_bw(colors[0]))
     im_copy = im.copy()
+    # place in top right corner
     im_copy.paste(overlay_im, (0,0))
     return im_copy
 
 
 async def overlay_weather(im, cfg, colors, target_epoch):
-    if not cfg.weather_api_key or not cfg.weather_api_lat_lon:
+    if not cfg.weather_api_key or not cfg.weather_api_lat or not cfg.weather_api_lon:
         raise RuntimeError("api key and city must be set")
 
-    if cfg.weather_updated_epoch == None:
+    if cfg.weather_updated_epoch is None:
         cfg.weather_updated_epoch = target_epoch
 
-    # update if we either don't have the weather info, or 60 epochs have passed
-    if cfg.cached_weather is None or target_epoch > epoch.delta(cfg.weather_updated_epoch, 60):
-        exclude = "minutely,hourly,alerts"
-        #TODO add configurable units
-        units="imperial"
-        URL = f"https://api.openweathermap.org/data/2.5/weather?lat={cfg.weather_api_lat_lon[0]}&lon={cfg.weather_api_lat_lon[1]}&units={units}&appid={cfg.weather_api_key}"
-        data = None
-        async with httpx.AsyncClient() as client:
-            response = await client.get(URL)
-            if response.status_code != 200:
-                logging.info(f"Failed to get weather info: {response}, api_key = {cfg.weather_api_key}, lat = {cfg.weather_api_lat_lon[0]}, lon = {cfg.weather_api_lat_lon[1]}")
-                return im
-            data = response.json()
+    # update if we either don't have the weather info, or 15 epochs have passed
+    if cfg.cached_weather is None or target_epoch > epoch.delta(cfg.weather_updated_epoch, 5):
+        cur_weather = await weather.get_weather(cfg.weather_api_key, cfg.weather_api_lat, cfg.weather_api_lon)
+        # else we failed to get a weather update. Just wait for the next one and use the cached weather instead
+        if cur_weather is not None:
+            logging.info(f"updated weather: {cur_weather}")
+            cfg.cached_weather = cur_weather
 
-        #TODO get icon set for the different weather states
-        weather = data["weather"]
-        # print(data["weather"])
-        #TODO put the temp on the overlay
-        temp = data["main"]["temp"]
-        print(temp)
+    # if we failed to get weather, and don't have any cached, just return and wait for the next epoch
+    if cfg.cached_weather is None:
+        return im
 
-        cfg.cached_weather = {"temp": temp}
+    icon = weather.to_icon(cfg.cached_weather)
+    temp = weather.to_temp(cfg.cached_weather)
 
-
-    # rect_height = 14
-    # rect_width = 32
-    rect_height = 128
-    rect_width = 128
+    rect_height = 14
+    rect_width = 28
     weather_font = ImageFont.load("libledmatrix/pillow-fonts/weather-12.pil")
     font = ImageFont.load("libledmatrix/pillow-fonts/helvR12.pil")
     overlay_im = Image.new("RGB", (rect_width+1, rect_height+1))
     draw = ImageDraw.Draw(overlay_im)
     # use the 1st and 2nd most dominant colors for the rectangle & frame
     draw.rectangle((0, 0, rect_width, rect_height), fill=colors[0], outline=colors[1])
-    #TODO put each weather glyph next to the temp and make sure they are vertically and horizontally spaced property
-    draw.text((1,0), "89", font=font, fill=image_color.contrast_color_bw(colors[0]))
-    draw.text((16,0), "ABCDEF", font=weather_font, fill=image_color.contrast_color_bw(colors[0]))
-    draw.text((1,30), "GHIJK", font=weather_font, fill=image_color.contrast_color_bw(colors[0]))
-
+    draw.text((1,0), temp, font=font, fill=image_color.contrast_color_bw(colors[0]))
+    draw.text((15,2), icon, font=weather_font, fill=image_color.contrast_color_bw(colors[0]))
 
     im_copy = im.copy()
-    im_copy.paste(overlay_im, (60,0))
+    # place in top left corner
+    im_copy.paste(overlay_im, (127 - rect_width,0))
     return im_copy
-

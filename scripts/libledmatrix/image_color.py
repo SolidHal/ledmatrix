@@ -69,3 +69,4 @@ def dominant_colors_gif(gif):
     gif_copy = gif.copy()
     gif_copy.seek(0)
     return dominant_colors(gif_copy)
+

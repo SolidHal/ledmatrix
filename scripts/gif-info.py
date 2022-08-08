@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
+
 import time
 import sys
 import os
+import logging
 
 import click
 from PIL import Image, GifImagePlugin
-from rgbmatrix import RGBMatrix, RGBMatrixOptions
 
-from libledmatrix import display, image_color, image_processing, config
+from libledmatrix import display, image_color, image_processing
+#TODO importing config before other modules breaks imports for some reason
+from libledmatrix import config
 
 #TODO:
 # add weather overlay to animated_overlaid
+logging.basicConfig(level=logging.INFO,)
 
 #TODO:
 # add spotify current song album art static_overlaid impl
@@ -24,7 +28,8 @@ from libledmatrix import display, image_color, image_processing, config
 def run(image_file, weather_api_key, weather_api_lat, weather_api_lon):
     cfg = config.Config()
     cfg.weather_api_key = weather_api_key
-    cfg.weather_api_lat_lon = (weather_api_lat, weather_api_lon)
+    cfg.weather_api_lat = weather_api_lat
+    cfg.weather_api_lon = weather_api_lon
 
     gif = Image.open(image_file)
     # get the dominant colors before converting the gif to avoid

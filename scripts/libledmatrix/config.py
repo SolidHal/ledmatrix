@@ -39,12 +39,10 @@ class Config():
 
     # weather overlay options
     weather_api_key = None
-    # tuple of (lat, lon)
-    weather_api_lat_lon = None
+    weather_api_lat = None
+    weather_api_lon = None
     weather_updated_epoch = None
-    cached_weather = None # {temp: int,
-                          #  weather_icon: image}
+    cached_weather = None
 
     # RGBMatrix
     matrix = Matrix(refresh_rate, brightness, luminance_correct)
-
