@@ -2,12 +2,10 @@
 
 import sys
 import time
-import httpx
-import json
 import logging
 from PIL import Image, ImageDraw, ImageFont, GifImagePlugin
 
-from . import weather, image_color, epoch
+from . import weather, image_color, epoch, calendar_dav
 #TODO importing config before other modules breaks imports for some reason
 from . import config
 
@@ -56,7 +54,7 @@ async def overlay_weather(im, cfg, colors, target_epoch):
     if cfg.weather_updated_epoch is None:
         cfg.weather_updated_epoch = target_epoch
 
-    # update if we either don't have the weather info, or 15 epochs have passed
+    # update if we either don't have the weather info, or 5 epochs have passed
     if cfg.cached_weather is None or target_epoch > epoch.delta(cfg.weather_updated_epoch, 5):
         cur_weather = await weather.get_weather(cfg.weather_api_key, cfg.weather_api_lat, cfg.weather_api_lon)
         # else we failed to get a weather update. Just wait for the next one and use the cached weather instead
@@ -86,3 +84,24 @@ async def overlay_weather(im, cfg, colors, target_epoch):
     # place in top left corner
     im_copy.paste(overlay_im, (127 - rect_width,0))
     return im_copy
+
+
+
+# overlay a todos list from a caldav server
+# displays "due" todos
+async def overlay_todos(im, cfg, colors, target_epoch):
+    #TODO check if the cfg vals are set
+    # if not cfg.weather_api_key or not cfg.weather_api_lat or not cfg.weather_api_lon:
+    #     raise RuntimeError("api key and city must be set")
+    todos = await calendar_dav.get_todos(cfg.todo_caldav_url, cfg.todo_caldav_username, cfg.todo_caldav_password)
+    #TODO get the items due today, display those first
+    # then if there are more past due items, display those next
+
+    return im
+
+# overlays a calendar events list for the day
+async def overlay_calendar(im, cfg, colors, target_epoch):
+    #TODO check if the cfg vals are set
+    # if not cfg.weather_api_key or not cfg.weather_api_lat or not cfg.weather_api_lon:
+    #     raise RuntimeError("api key and city must be set")
+    return im

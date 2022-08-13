@@ -1,13 +1,21 @@
+# ledmatrix
 
+a set of tools to work with a rpi + led matricies
 
+- scripts/libledmatrix : a set of modules to support the various scripts
+- scripts/libledmatrix/config.py : configuration file for the scripts/libledmatrix
+- scripts/image-viewer.py : a simple script to display a static image on the matrix
+- scripts/gif-viewer.py : a script to efficiently pre-process and display a gif on the matrix
+- scripts/gif-info.py : a scripts to efficiently pre-process and display a gif along with various information overlays on the matrix
 
-library:
-https://github.com/hzeller/rpi-rgb-led-matrix
+requirements:
 
+RGBMatrix python bindings:
+https://github.com/hzeller/rpi-rgb-led-matrix/blob/master/bindings/python/README.md
 
-notes on python performance from library:
 ```
-If you can prepare the animation you want to show, then you can either prepare images and then use the much faster call to SetImage(), or can fill entire offscreen-frames (create with CreateFrameCanvas()) and then swap with SwapOnVSync() (this is the fastest method).
+pip install click caldav lxml httpx icalendar
+apt install libxslt-dev
 ```
 
 

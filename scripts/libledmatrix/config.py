@@ -28,8 +28,9 @@ def Matrix(refresh_rate, brightness, luminance_correct):
 
 # Global config to be used for all scripts
 class Config():
+    ## Options ##
     # matrix options
-    brightness = 50
+    brightness = 100
     luminance_correct=True
     refresh_rate=90
 
@@ -41,8 +42,19 @@ class Config():
     weather_api_key = None
     weather_api_lat = None
     weather_api_lon = None
+
+    # todo overlay options
+    todo_caldav_url = None
+    todo_caldav_username = None
+    todo_caldav_password = None
+
+    ## Config Global Storage ##
+    # weather overlay storage
     weather_updated_epoch = None
     cached_weather = None
 
-    # RGBMatrix
+    # todo overlay storage
+
+
+    # RGBMatrix storage
     matrix = Matrix(refresh_rate, brightness, luminance_correct)

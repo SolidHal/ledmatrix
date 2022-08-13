@@ -12,10 +12,7 @@ from libledmatrix import display, image_color, image_processing
 #TODO importing config before other modules breaks imports for some reason
 from libledmatrix import config
 
-#TODO:
-# add weather overlay to animated_overlaid
 logging.basicConfig(level=logging.INFO,)
-
 #TODO:
 # add spotify current song album art static_overlaid impl
 
@@ -25,12 +22,7 @@ logging.basicConfig(level=logging.INFO,)
 # when time moves forward, show the next minute and start computing
 # frames for the next minute
 
-def run(image_file, weather_api_key, weather_api_lat, weather_api_lon):
-    cfg = config.Config()
-    cfg.weather_api_key = weather_api_key
-    cfg.weather_api_lat = weather_api_lat
-    cfg.weather_api_lon = weather_api_lon
-
+def run(image_file, cfg):
     gif = Image.open(image_file)
     # get the dominant colors before converting the gif to avoid
     # the padding from altering which colors are dominant
@@ -61,8 +53,24 @@ def run(image_file, weather_api_key, weather_api_lat, weather_api_lon):
 @click.option('--weather_api_lon', required=True,
               default=lambda: os.environ.get('OPENWEATHER_API_LON', ''),
               show_default='OPENWEATHER_API_LON envvar')
-def main(image, weather_api_key, weather_api_lat, weather_api_lon):
-    run(image, weather_api_key, weather_api_lat, weather_api_lon)
+@click.option('--todo_caldav_url', required=True,
+              default=lambda: os.environ.get('TODO_CALDAV_URL', ''),
+              show_default='TODO_CALDAV_URL envvar')
+@click.option('--todo_caldav_username', required=True,
+              default=lambda: os.environ.get('TODO_CALDAV_USERNAME', ''),
+              show_default='TODO_CALDAV_USERNAME envvar')
+@click.option('--todo_caldav_password', required=True,
+              default=lambda: os.environ.get('TODO_CALDAV_PASSWORD', ''),
+              show_default='TODO_CALDAV_PASSWORD envvar')
+def main(image, weather_api_key, weather_api_lat, weather_api_lon, todo_caldav_url, todo_caldav_username, todo_caldav_password):
+    cfg = config.Config()
+    cfg.weather_api_key = weather_api_key
+    cfg.weather_api_lat = weather_api_lat
+    cfg.weather_api_lon = weather_api_lon
+    cfg.todo_caldav_url = todo_caldav_url
+    cfg.todo_caldav_username = todo_caldav_username
+    cfg.todo_caldav_password = todo_caldav_password
+    run(image, cfg)
 
 if __name__ == "__main__":
     main()

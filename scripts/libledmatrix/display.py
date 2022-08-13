@@ -2,7 +2,7 @@
 import asyncio
 import logging
 
-from libledmatrix import image_processing, image_color, overlay, epoch
+from . import image_processing, image_color, overlay, epoch
 #TODO importing config before other modules breaks imports for some reason
 from . import config
 
@@ -60,7 +60,9 @@ def animated_overlaid(cfg, frames, colors):
             await enqueue()
 
     async def run(cfg, frames, colors):
-        canvases_queue = asyncio.Queue(5)
+        # keep queue small to avoid delays in external updates
+        # we will be at most the max size of the queue epochs behind
+        canvases_queue = asyncio.Queue(3)
         ready_event = asyncio.Event()
 
         producer = asyncio.create_task(prepare_canvases(cfg=cfg,
