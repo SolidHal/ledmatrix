@@ -48,6 +48,9 @@ class Config():
     todo_caldav_username = None
     todo_caldav_password = None
 
+    # spotify options
+    spotify_api_username = None
+
     ## Config Global Storage ##
     # weather overlay storage
     weather_updated_epoch = None

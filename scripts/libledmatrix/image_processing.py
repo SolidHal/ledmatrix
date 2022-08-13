@@ -48,6 +48,16 @@ def resize(im, matrix, fill_matrix):
     im.thumbnail((matrix.width*thumbnail_multiplier, matrix.height*thumbnail_multiplier), Image.ANTIALIAS)
     return im
 
+def centerfit_image(im, matrix, fill_matrix):
+    frames = []
+    frame = im.copy()
+    # resize before converting colorspace to maintain as much color info as possible
+    frame = resize(frame, matrix, fill_matrix)
+    frame = image_color.convertRGB(frame)
+    frame = crop_and_pad(frame, matrix)
+    frames.append(frame)
+    return frames
+
 def resize_crop_pad_gif(gif, matrix, fill_matrix):
     print(f"n_frames = {gif.n_frames}")
     frames = []

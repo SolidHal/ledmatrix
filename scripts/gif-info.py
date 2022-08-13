@@ -13,9 +13,6 @@ from libledmatrix import display, image_color, image_processing
 from libledmatrix import config
 
 logging.basicConfig(level=logging.INFO,)
-#TODO:
-# add spotify current song album art static_overlaid impl
-
 
 # compute the frames for the current minute, and the next minute
 # show the current minute
