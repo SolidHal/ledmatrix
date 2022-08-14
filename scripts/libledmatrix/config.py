@@ -13,7 +13,7 @@ def Matrix(refresh_rate, brightness, luminance_correct):
 
     # options.pixel_mapper_config="U-mapper"
     # options.pixel_mapper_config="U-mapper;Rotate:180"
-    # options.show_refresh_rate=True
+    options.show_refresh_rate=False
     options.limit_refresh_rate_hz=refresh_rate
 
     matrix = RGBMatrix(options = options)
@@ -30,12 +30,12 @@ def Matrix(refresh_rate, brightness, luminance_correct):
 class Config():
     ## Options ##
     # matrix options
-    brightness = 100
+    brightness = 80
     luminance_correct=True
     refresh_rate=90
 
     # display options
-    fps = 8 # fps for animations on the display
+    fps = 6 # fps for animations on the display
     framerate_fraction = refresh_rate / fps
 
     # weather overlay options
@@ -51,6 +51,8 @@ class Config():
     # spotify options
     spotify_api_username = None
     spotify_api = None
+    spotify_api_excluded_devices = []
+    spotify_api_currently_playing_song = None
 
     ## Config Global Storage ##
     # weather overlay storage

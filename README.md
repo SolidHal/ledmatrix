@@ -24,3 +24,10 @@ TODO:
 - display spotify album art when playing
 - display images
 - pixelart gifs (aesthetic rain)?
+
+
+## Setup
+- write a ledmatrix-env.sh
+- source ledmatrix-env.sh
+- call setup-spotify.py
+- call main-viewer.py

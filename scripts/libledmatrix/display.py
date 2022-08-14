@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 import asyncio
 import logging
+import json
+import io
 
+from PIL import Image, GifImagePlugin
+
+from . import spotify
 from . import image_processing, image_color, overlay, epoch
 #TODO importing config before other modules breaks imports for some reason
 from . import config
@@ -124,8 +129,6 @@ def static(matrix, image, dom_colors):
     pass
 
 def frameset_overlaid_and_spotify(cfg, frameset_list):
-
-
     async def prepare_canvases(cfg, frameset_list, canvases_queue, cur_epoch, ready_event, spotify_playing):
         logging.info("Starting prepare_canvases loop")
 
@@ -169,15 +172,59 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
         #TODO could support overlays on album art eventually, so continue taking an epoch just in case
         logging.info("Starting prepare_spotify loop")
 
-
         # TODO check if music is playing, if it is, prepare our canvas and then set spotify_playing
         # so the consumer and other producer know
         # if it isn't, await a few seconds before checking again
 
+        def cleanup():
+            if spotify_playing.is_set():
+                logging.info("Clearing spotify playing")
+                spotify_playing.clear()
+                cfg.spotify_api_currently_playing_song = None
+
+        async def enqueue(song_name, album_art, device):
+            if device in cfg.spotify_api_excluded_devices:
+                # act like nothing is playing
+                cleanup()
+                return
+
+            if cfg.spotify_api_currently_playing_song == song_name:
+                # song is still playing nothing to do
+                return
+
+            if album_art is None or device is None:
+                # either failed to get some info, or no longer playing
+                cleanup()
+                return
+
+            pil_album_art = Image.open(io.BytesIO(album_art))
+            frames = image_processing.centerfit_image(pil_album_art, cfg.matrix, False)
+            pil_album_art.close()
+            canvases = await image_processing.frames_to_canvases(frames, cfg.matrix)
+
+            logging.info(f"Putting spotify album art on queue for song {song_name}")
+            cfg.spotify_api_currently_playing_song = song_name
+            await spotify_canvases_queue.put(canvases)
+            if not spotify_playing.is_set():
+                logging.info("Setting spotify playing")
+                spotify_playing.set()
+
+
+
         while(True):
-            print(cfg.spotify_api.currently_playing())
-            print(cfg.spotify_api.devices())
-            await asyncio.sleep(3)
+            #TODO move this to its own thread to avoid flicker during this network access?
+            playing = await spotify.currently_playing(cfg)
+            await asyncio.sleep(0.001)
+            song_name = spotify.currently_playing_song_name(cfg, playing)
+            album_art = await spotify.currently_playing_album_art(cfg, playing)
+            await asyncio.sleep(0.001)
+            device = await spotify.currently_playing_device(cfg)
+            print(song_name)
+            print(device)
+
+            await asyncio.sleep(0.001)
+            await enqueue(song_name, album_art, device)
+            await asyncio.sleep(5)
 
 
 
@@ -211,10 +258,14 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
                 # otherwise we have no way to tell why we don't yet have a canvas on the queue
                 # it could be that music stopped while we were waiting
                 # or the same song is still playing
-                canvas = await asyncio.wait_for(spotify_canvases_queue.get(), 2)
-                if canvas is not None:
+                canvas_list = None
+                try:
+                    canvas_list = await asyncio.wait_for(spotify_canvases_queue.get(), 2)
+                except asyncio.exceptions.TimeoutError:
+                    pass
+                if canvas_list is not None:
                     # we have some album art, show it.
-                    await SwapOnVSync(canvas, 1)
+                    await SwapOnVSync(canvas_list[0], 1)
 
             # continue draining the main queue, even if we aren't showing the canvases
             # since its easier than pausing & restarting the producer at the correct epoch
