@@ -50,6 +50,7 @@ class Config():
 
     # spotify options
     spotify_api_username = None
+    spotify_api = None
 
     ## Config Global Storage ##
     # weather overlay storage

@@ -9,6 +9,7 @@ import pathlib
 import click
 from PIL import Image, GifImagePlugin
 
+from libledmatrix import spotify
 from libledmatrix import display, image_color, image_processing
 from libledmatrix.display import FrameSet
 #TODO importing config before other modules breaks imports for some reason
@@ -55,6 +56,7 @@ def process_images(cfg, image_dir: pathlib.Path):
 
 
 def run(cfg, image_dir_path):
+    cfg.spotify_api = spotify.start_api(cfg.spotify_api_username)
     frameset_list = process_images(cfg, image_dir_path)
     if len(frameset_list) < 1:
         raise RuntimeException(f"No loadable images found in {image_dir_path}")
@@ -93,11 +95,6 @@ def main(image_dir, weather_api_key, weather_api_lat, weather_api_lon, spotify_a
     cfg.spotify_api_username = spotify_api_username
 
     image_dir_path = pathlib.Path(image_dir)
-
-    check for spotipy env vars
-    os.environ["SPOTIPY_CLIENT_ID"]
-    os.environ["SPOTIPY_CLIENT_SECRET"]
-    os.environ["SPOTIPY_REDIRECT_URI"]
 
     run(cfg, image_dir_path)
 

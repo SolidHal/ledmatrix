@@ -2,7 +2,6 @@
 import asyncio
 import logging
 
-from . import spotify
 from . import image_processing, image_color, overlay, epoch
 #TODO importing config before other modules breaks imports for some reason
 from . import config
@@ -170,15 +169,14 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
         #TODO could support overlays on album art eventually, so continue taking an epoch just in case
         logging.info("Starting prepare_spotify loop")
 
-        # blocking call, but we only do this once at startup so its fine
-        #TODO maybe we should do this before calling our parent func and keep the handle in the config?
-        # spotify_api = spotify.start_api(cfg.spotify_api_username)
 
         # TODO check if music is playing, if it is, prepare our canvas and then set spotify_playing
         # so the consumer and other producer know
         # if it isn't, await a few seconds before checking again
 
         while(True):
+            print(cfg.spotify_api.currently_playing())
+            print(cfg.spotify_api.devices())
             await asyncio.sleep(3)
 
 
