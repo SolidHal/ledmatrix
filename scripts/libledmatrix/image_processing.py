@@ -99,9 +99,11 @@ async def frames_to_canvases(frames, matrix, overlays=[], overlay_args=()):
     for frame in frames:
         # apply our overlays first
         frame = await overlay.apply_overlays(frame, overlays, overlay_args)
-
+        await asyncio.sleep(0.001)
         canvas = matrix.CreateFrameCanvas()
+        await asyncio.sleep(0.001)
         canvas.SetImage(frame)
+        await asyncio.sleep(0.001)
         canvases.append(canvas)
         # sleep for a millisecond to avoid blocking for too long
         await asyncio.sleep(0.001)

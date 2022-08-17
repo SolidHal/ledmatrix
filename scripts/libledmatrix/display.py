@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import asyncio
 import logging
-import json
 import io
+import threading
+import queue
 
 from PIL import Image, GifImagePlugin
 
@@ -125,8 +126,8 @@ def static_overlaid(matrix, image):
     matrix.SetImage(image)
 
 # display a still image on the matrix
-def static(matrix, image, dom_colors):
-    pass
+def static(cfg, image):
+    cfg.matrix.SetImage(image)
 
 def frameset_overlaid_and_spotify(cfg, frameset_list):
     async def prepare_canvases(cfg, frameset_list, canvases_queue, cur_epoch, ready_event, spotify_playing):
@@ -138,7 +139,6 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
             await canvases_queue.put(canvases)
             logging.info(f"Put canvases on the queue at cur_epoch {cur_epoch}")
             cur_epoch.next()
-
 
         # wait 3 epochs before switching to the next frameset
         next_frameset_num_epochs = 3
@@ -172,59 +172,50 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
         #TODO could support overlays on album art eventually, so continue taking an epoch just in case
         logging.info("Starting prepare_spotify loop")
 
-        # TODO check if music is playing, if it is, prepare our canvas and then set spotify_playing
-        # so the consumer and other producer know
-        # if it isn't, await a few seconds before checking again
+        q = queue.Queue(1)
+        spotify_thread_event = threading.Event()
+        spotify_t = threading.Thread(target=spotify.spotify_thread, args=(cfg.spotify_api_username, cfg.spotify_api_excluded_devices, q, spotify_thread_event), daemon=True)
+        spotify_t.start()
 
-        def cleanup():
-            if spotify_playing.is_set():
-                logging.info("Clearing spotify playing")
-                spotify_playing.clear()
-                cfg.spotify_api_currently_playing_song = None
 
-        async def enqueue(song_name, album_art, device):
-            if device in cfg.spotify_api_excluded_devices:
-                # act like nothing is playing
-                cleanup()
-                return
+        async def enqueue(album_art):
+            async def process_image(album_art):
+                loop = asyncio.get_event_loop()
+                bytes_album_art = await loop.run_in_executor(None, io.BytesIO, album_art)
+                pil_album_art = await loop.run_in_executor(None, Image.open, bytes_album_art)
+                frames = await loop.run_in_executor(None, image_processing.centerfit_image, pil_album_art, cfg.matrix, False)
+                await loop.run_in_executor(None, pil_album_art.close)
+                return frames
 
-            if cfg.spotify_api_currently_playing_song == song_name:
-                # song is still playing nothing to do
-                return
-
-            if album_art is None or device is None:
-                # either failed to get some info, or no longer playing
-                cleanup()
-                return
-
-            pil_album_art = Image.open(io.BytesIO(album_art))
-            frames = image_processing.centerfit_image(pil_album_art, cfg.matrix, False)
-            pil_album_art.close()
+            frames = await process_image(album_art)
             canvases = await image_processing.frames_to_canvases(frames, cfg.matrix)
 
-            logging.info(f"Putting spotify album art on queue for song {song_name}")
-            cfg.spotify_api_currently_playing_song = song_name
+            logging.info(f"Putting spotify album art on queue")
             await spotify_canvases_queue.put(canvases)
             if not spotify_playing.is_set():
                 logging.info("Setting spotify playing")
                 spotify_playing.set()
 
 
-
         while(True):
-            #TODO move this to its own thread to avoid flicker during this network access?
-            playing = await spotify.currently_playing(cfg)
-            await asyncio.sleep(0.001)
-            song_name = spotify.currently_playing_song_name(cfg, playing)
-            album_art = await spotify.currently_playing_album_art(cfg, playing)
-            await asyncio.sleep(0.001)
-            device = await spotify.currently_playing_device(cfg)
-            print(song_name)
-            print(device)
+            if spotify_thread_event.is_set():
+                # get album art from thread queue and process it
+                try:
+                    album_art = q.get(block=False)
+                except queue.Empty:
+                    # no new album art to process
+                    pass
+                else:
+                    # let us get interrupted before doing the enqueue work
+                    await asyncio.sleep(0.001)
+                    await enqueue(album_art)
+            else:
+                # nothing is playing, clear our state
+                if spotify_playing.is_set():
+                    logging.info("Clearing spotify playing")
+                    spotify_playing.clear()
 
-            await asyncio.sleep(0.001)
-            await enqueue(song_name, album_art, device)
-            await asyncio.sleep(5)
+            await asyncio.sleep(1)
 
 
 
@@ -237,21 +228,26 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
 
         logging.info("in framebuffer_handler")
         cur_frame = 0
+        set_still = False
         # let the producer prepare some canvases first
         await ready_event.wait()
         logging.info(f"Starting framebuffer_handler loop at cur_epoch {cur_epoch}")
         canvases = await canvases_queue.get()
         while(True):
             if not spotify_playing.is_set():
-                canvas = canvases[cur_frame]
+                if len(canvases) > 1:
+                    canvas = canvases[cur_frame]
 
-                #TODO if our canvases list only has 1 frame, we can chill out a bit here
-                # and simply show that frame until the next epoch
-                # instead of swapping it every vsync
-
-                # blocks until it can swap in the next canvas
-                await SwapOnVSync(canvas, cfg.framerate_fraction)
-                cur_frame = next_index(cur_frame, canvases)
+                    # blocks until it can swap in the next canvas
+                    await SwapOnVSync(canvas, cfg.framerate_fraction)
+                    cur_frame = next_index(cur_frame, canvases)
+                elif not set_still:
+                    set_still = True
+                    logging.info("Set still image")
+                    await SwapOnVSync(canvases[0], 1)
+                else:
+                    # give the producer a chance to make progress
+                    await asyncio.sleep(0.0001)
 
             else:
                 # timeout waiting so we return to showing the main canvases if spotify is no longer playing
@@ -274,6 +270,8 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
                 #TODO do we need to add the cur_epoch to the canvases set so we know we are pulling
                 # the canvas set for the cur_epoch we expect?
                 canvases = canvases_queue.get_nowait()
+                cur_frame = 0
+                set_still = False
                 cur_epoch = epoch.Epoch()
                 logging.info(f"swapped to new cur_epoch {cur_epoch}")
 
@@ -304,25 +302,3 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
         await asyncio.gather(producer, spotify_producer, consumer)
 
     asyncio.run(run(cfg, frameset_list))
-
-
-
-
-
-
-    # have additional producer that checks spotify for playing music and tells the main producer to pause when music is playing
-    # spotify producer should prepare its frameset & canvas, then set the spotify_event
-    # which tells the main producer to await
-    # and tells the consumer to start checking for updates more often, and just to use a static image instead of SwapOnVsync
-    # the spotify producer then clears the queue and puts its frameset onto it
-    # we can use ready_event to ensure the consumer waits for the spotify producer to be ready
-    # modify this logic a bit, maybe have the spotify producer use a dedicated queue
-    # then the main producer can continue filling the main queue, and the consumer can continue draining the main queue every epoch
-    # so that we can go back to displaying the images as soon as music has stopped
-    # this has the added benefit of not needing to worry about race conditions when clearing the main queue when switching producers
-
-
-    # how to switch back from spotify to normal producer
-    # when in spotify mode the consumer constantly waits on the spotify queue for a new canvas to push
-    # if it gets one, before showing it, it first checks that "spotify_playing" event is set
-    # if it is no longer set, the consumer should return to the normal producers queue

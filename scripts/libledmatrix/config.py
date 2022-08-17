@@ -11,9 +11,14 @@ def Matrix(refresh_rate, brightness, luminance_correct):
     options.parallel = 2
     options.hardware_mapping = 'regular'  # If you have an Adafruit HAT: 'adafruit-hat'
 
-    # options.pixel_mapper_config="U-mapper"
-    # options.pixel_mapper_config="U-mapper;Rotate:180"
     options.show_refresh_rate=False
+
+    # give us a chance to maintain a consistent frame rate without flickering
+    # options.pwm_lsb_nanoseconds=90
+    # options.scan_mode=1
+    # options.pwm_dither_bits=1
+    options.pwm_bits=6 # limit color space <1..11> 11 is default
+    options.pwm_lsb_nanoseconds=130
     options.limit_refresh_rate_hz=refresh_rate
 
     matrix = RGBMatrix(options = options)
@@ -32,7 +37,8 @@ class Config():
     # matrix options
     brightness = 80
     luminance_correct=True
-    refresh_rate=90
+    # anything below 100 looks flickery
+    refresh_rate=100
 
     # display options
     fps = 6 # fps for animations on the display
@@ -50,9 +56,7 @@ class Config():
 
     # spotify options
     spotify_api_username = None
-    spotify_api = None
     spotify_api_excluded_devices = []
-    spotify_api_currently_playing_song = None
 
     ## Config Global Storage ##
     # weather overlay storage

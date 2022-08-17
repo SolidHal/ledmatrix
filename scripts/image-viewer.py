@@ -4,19 +4,21 @@ import sys
 
 from rgbmatrix import RGBMatrix
 from PIL import Image
-import config
-import display
+from libledmatrix import display, image_color, image_processing
+from libledmatrix import config
 
 
 def image_viewer(image_file):
 
-    image = Image.open(image_file)
+    pil_image = Image.open(image_file)
+    cfg = config.Config()
+    image = image_processing.centerfit_image(pil_image, cfg.matrix, False)[0]
+    pil_image.close()
 
-    matrix = config.Matrix()
 
     try:
         print("Press CTRL-C to stop.")
-        display.static(matrix, image)
+        display.static(cfg, image)
         while True:
             time.sleep(100)
     except KeyboardInterrupt:

@@ -3,6 +3,7 @@ import os
 import json
 import logging
 import requests
+import time
 
 import httpx
 import spotipy
@@ -34,30 +35,22 @@ def start_api(username):
 
     return spotify_api
 
-async def currently_playing(cfg):
-    try:
-        loop = asyncio.get_event_loop()
-        playing = await loop.run_in_executor(None,  cfg.spotify_api.currently_playing)
-    except (requests.exceptions.HTTPError, spotipy.exceptions.SpotifyException, requests.exceptions.ReadTimeout) as e:
-        # refresh in case our token expired. Next call will then succeed
-        cfg.spotify_api = start_api(cfg.spotify_api_username)
-        logging.error(f"failed to get currently playing from spotify {e}")
-        return None
-
+def currently_playing(api):
+    playing = api.currently_playing()
     return playing
 
-def currently_playing_song_name(cfg, playing):
+def currently_playing_song_name(playing):
     if playing:
         if playing.get("is_playing", None):
             return playing.get("item", {}).get("name", None)
     return None
 
 
-async def currently_playing_album_art(cfg, playing):
+def currently_playing_album_art(playing):
 
-    async def download_album_art(url):
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url)
+    def download_album_art(url):
+        with httpx.Client() as client:
+            response = client.get(url)
             return response.read()
 
     if playing is None:
@@ -68,23 +61,68 @@ async def currently_playing_album_art(cfg, playing):
             images = playing.get("item", {}).get("album", {}).get("images", [])
             for image in images:
                 if image.get("height") == 300:
-                    return await download_album_art(image.get("url"))
+                    return download_album_art(image.get("url"))
 
     return None
 
-async def currently_playing_device(cfg):
-    try:
-        loop = asyncio.get_event_loop()
-        devices = await loop.run_in_executor(None,  cfg.spotify_api.devices)
-
-    except (requests.exceptions.HTTPError, spotipy.exceptions.SpotifyException, requests.exceptions.ReadTimeout) as e:
-        # refresh in case our token expired. Next call will then succeed
-        cfg.spotify_api = start_api(cfg.spotify_api_username)
-        logging.error(f"failed to get currently playing device info from spotify {e}")
-        return None
+def currently_playing_device(api):
+    devices = api.devices()
 
     for device in devices.get("devices", []):
         if device.get("is_active", None):
             return device.get("name")
 
     return None
+
+
+def spotify_thread(username, excluded_devices, art_queue, spotify_thread_event):
+    def alert_main(song_name=None, album_art=None):
+        if album_art is None or device is None:
+            logging.info(f"Informing main thread that nothing is playing")
+            # alert thread that nothing is playing
+            if spotify_thread_event.is_set():
+                spotify_thread_event.clear()
+        else:
+            logging.info(f"Informing main thread that {song_name} is playing")
+            # alert thread that something is playing
+            art_queue.put(album_art)
+            if not spotify_thread_event.is_set():
+                spotify_thread_event.set()
+
+    api = start_api(username)
+    last_song_name = None
+
+    while(True):
+        try:
+            playing = currently_playing(api)
+            device = currently_playing_device(api)
+
+        except (requests.exceptions.HTTPError, spotipy.exceptions.SpotifyException, requests.exceptions.ReadTimeout) as e:
+            # refresh in case our token expired. Next call will then succeed
+            api = start_api(username)
+            logging.error(f"failed to get currently playing device info from spotify {e}")
+
+        else:
+            song_name = currently_playing_song_name(playing)
+            album_art = currently_playing_album_art(playing)
+            if device in excluded_devices:
+                # act like nothing is playing
+                last_song_name = None
+                alert_main()
+
+            elif last_song_name == song_name:
+                # song is still playing nothing to do
+                pass
+
+            elif album_art is None or device is None:
+                # either failed to get some info, or no longer playing
+                last_song_name = None
+                alert_main()
+            else:
+                # we have song info to alert the main thread about
+                last_song_name = song_name
+                alert_main(song_name, album_art)
+
+        # don't poll too aggressively
+        time.sleep(3)
+
