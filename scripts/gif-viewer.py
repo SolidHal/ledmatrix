@@ -4,22 +4,22 @@ import sys
 
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 from PIL import Image, GifImagePlugin
-import config
-import image
+from libledmatrix import display, image_color, image_processing
+from libledmatrix import config
 
 def gif_viewer(image_file):
     gif = Image.open(image_file)
-    matrix = config.Matrix()
+    cfg = config.Config()
     # pre process our frames so we can dedicate our resources to displaying them later
     fill_matrix = False
-    frames = image.centerfit_gif(gif, matrix, fill_matrix)
+    frames = image_processing.centerfit_gif(gif, cfg.matrix, fill_matrix)
     # Close the gif file to save memory now that we have copied out all of the frames
     gif.close()
 
     #TODO provide way to pre-process gifs and load/store them on disk
     try:
         print("Press CTRL-C to stop.")
-        display.animated(matrix, frames)
+        display.animated(cfg, frames)
 
     except KeyboardInterrupt:
         sys.exit(0)

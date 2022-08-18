@@ -113,11 +113,11 @@ def animated_overlaid(cfg, frames, colors):
 
 # display a set of frames
 def animated(cfg, frames):
-    canvases = image_processing.frames_to_canvases(frames, cfg.matrix)
+    canvases = asyncio.run(image_processing.frames_to_canvases(frames, cfg.matrix))
     cur_frame = 0
     while(True):
         canvas = canvases[cur_frame]
-        cfg.matrix.SwapOnVSync(canvas, config.framerate_fraction)
+        cfg.matrix.SwapOnVSync(canvas, cfg.framerate_fraction)
         cur_frame = next_index(cur_frame, canvases)
 
 # display a still image on the matrix with overlays which update every cur_epoch
