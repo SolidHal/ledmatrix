@@ -56,6 +56,7 @@ class Config():
 
     # spotify options
     spotify_api_username = None
+    spotify_api_token_cache_path = None
     spotify_api_excluded_devices = []
 
     ## Config Global Storage ##

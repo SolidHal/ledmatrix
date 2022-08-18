@@ -5,7 +5,7 @@ import time
 import logging
 from PIL import Image, ImageDraw, ImageFont, GifImagePlugin
 
-from . import weather, image_color, epoch, calendar_dav
+from . import weather, image_color, epoch, calendar_dav, ledmatrix_dir_path
 #TODO importing config before other modules breaks imports for some reason
 from . import config
 
@@ -33,7 +33,7 @@ async def overlay_clock(im, cfg, colors, target_epoch):
 
     rect_height = 14
     rect_width = 32
-    font = ImageFont.load("libledmatrix/pillow-fonts/helvR12.pil")
+    font = ImageFont.load(f"{ledmatrix_dir_path}/pillow-fonts/helvR12.pil")
     overlay_im = Image.new("RGB", (rect_width+1, rect_height+1))
     draw = ImageDraw.Draw(overlay_im)
     # use the 1st and 2nd most dominant colors for the rectangle & frame
@@ -71,8 +71,8 @@ async def overlay_weather(im, cfg, colors, target_epoch):
 
     rect_height = 14
     rect_width = 28
-    weather_font = ImageFont.load("libledmatrix/pillow-fonts/weather-12.pil")
-    font = ImageFont.load("libledmatrix/pillow-fonts/helvR12.pil")
+    weather_font = ImageFont.load(f"{ledmatrix_dir_path}/pillow-fonts/weather-12.pil")
+    font = ImageFont.load(f"{ledmatrix_dir_path}/pillow-fonts/helvR12.pil")
     overlay_im = Image.new("RGB", (rect_width+1, rect_height+1))
     draw = ImageDraw.Draw(overlay_im)
     # use the 1st and 2nd most dominant colors for the rectangle & frame

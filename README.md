@@ -24,3 +24,9 @@ apt install libxslt-dev
 - source ledmatrix-env.sh
 - call setup-spotify.py
 - call main-viewer.py
+
+
+can be autostarted on dietpi using:
+```
+/var/lib/dietpi/dietpi-autostart/custom.sh
+```

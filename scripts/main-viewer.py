@@ -57,7 +57,8 @@ def process_images(cfg, image_dir: pathlib.Path):
 
 
 def run(cfg, image_dir_path):
-    cfg.spotify_api = spotify.start_api(cfg.spotify_api_username)
+    # ensure we can connect to spotify
+    # spotify.start_api(cfg.spotify_api_username, cfg.spotify_api_token_cache_path)
     frameset_list = process_images(cfg, image_dir_path)
     if len(frameset_list) < 1:
         raise RuntimeException(f"No loadable images found in {image_dir_path}")
@@ -88,12 +89,27 @@ def run(cfg, image_dir_path):
 @click.option('--spotify_api_username', required=True,
               default=lambda: os.environ.get('SPOTIFY_API_USERNAME', ''),
               show_default='SPOTIFY_API_USERNAME envvar')
-def main(image_dir, weather_api_key, weather_api_lat, weather_api_lon, spotify_api_username):
+@click.option('--spotify_api_token_cache_path', required=False,
+              default=lambda: os.environ.get('SPOTIFY_API_TOKEN_CACHE_PATH', ''),
+              show_default='SPOTIFY_API_TOKEN_CACHE_PATH envvar')
+@click.option('--spotify_api_excluded_devices', required=False,
+              default=lambda: os.environ.get('SPOTIFY_API_EXCLUDED_DEVICES', ''),
+              show_default='SPOTIFY_API_EXCLUDED_DEVICES envvar')
+def main(image_dir, weather_api_key, weather_api_lat, weather_api_lon, spotify_api_username, spotify_api_token_cache_path, spotify_api_excluded_devices):
     cfg = config.Config()
     cfg.weather_api_key = weather_api_key
     cfg.weather_api_lat = weather_api_lat
     cfg.weather_api_lon = weather_api_lon
     cfg.spotify_api_username = spotify_api_username
+    cfg.spotify_api_token_cache_path = spotify_api_token_cache_path
+
+    if isinstance(spotify_api_excluded_devices, list):
+        cfg.spotify_api_excluded_devices = spotify_api_excluded_devices
+    else:
+        if ";" in spotify_api_excluded_devices:
+            cfg.spotify_api_excluded_devices = spotify_api_excluded_devices.split(";")
+        else:
+            cfg.spotify_api_excluded_devices.append(spotify_api_excluded_devices)
 
     image_dir_path = pathlib.Path(image_dir)
 
@@ -102,29 +118,3 @@ def main(image_dir, weather_api_key, weather_api_lat, weather_api_lon, spotify_a
 
 if __name__ == "__main__":
     main()
-
-
-#TODO:
-# add spotify current song album art static_overlaid impl
-
-# take a directory to images/gifs
-#TODO store the preprocessed info somehow on disk as a cache to save on startup time?
-# preprocess these to a struct of
-# - frames
-# - dom_colors
-# call this a FrameSet object
-
-# call the collection for these structs a: frameset_list?
-
-# store the index of the current FrameSet object
-# after (5?) minutes start using the next FrameSet object
-# rollover to repeat all available images/gifs
-
-#TODO might need to shorten epoch so this is responsive? Or we can have a check more frequently in the main SetImage loop?
-# check for music playing on spotify
-# have config option for ignored devices
-# if music is playing, get the album art for the current song, process it, and display it
-# instead of displaying what is in the canvas queue
-# when music stops, empty to canvas queue, and pickup where the image loop left off
-# we could continue filling/draining the canvas queue to more quickly start displaying the
-# image/info screen when music stops but doing a dry start should be fast enough in most cases

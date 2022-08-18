@@ -174,7 +174,10 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
 
         q = queue.Queue(1)
         spotify_thread_event = threading.Event()
-        spotify_t = threading.Thread(target=spotify.spotify_thread, args=(cfg.spotify_api_username, cfg.spotify_api_excluded_devices, q, spotify_thread_event), daemon=True)
+
+        logging.info(f"prepare cache path = {cfg.spotify_api_token_cache_path}")
+
+        spotify_t = threading.Thread(target=spotify.spotify_thread, args=(cfg.spotify_api_username, cfg.spotify_api_token_cache_path, cfg.spotify_api_excluded_devices, q, spotify_thread_event), daemon=True)
         spotify_t.start()
 
 

@@ -12,7 +12,7 @@ from json.decoder import JSONDecodeError
 
 
 
-def start_api(username):
+def start_api(username, cache_path=None):
     """
     the following must be set:
     SPOTIPY_CLIENT_ID
@@ -25,17 +25,25 @@ def start_api(username):
     os.environ["SPOTIPY_REDIRECT_URI"]
     scope = 'user-read-private user-read-playback-state user-modify-playback-state user-library-read playlist-modify-private playlist-modify-public'
 
+
     try:
-        token = util.prompt_for_user_token(username, scope)
+        token = util.prompt_for_user_token(username, scope, cache_path=cache_path)
     except (AttributeError, JSONDecodeError):
-        os.remove(f".cache-{username}")
-        token = util.prompt_for_user_token(username, scope)
+        if cache_path is None:
+            os.remove(f".cache-{username}")
+        else:
+            os.remove(f"{cache_path}/.cache-{username}")
+        token = util.prompt_for_user_token(username, scope, cache_path=cache_path)
 
     spotify_api = spotipy.Spotify(auth=token, retries=10, status_retries=10, backoff_factor=1.5)
+
+
+    logging.info(f"started spotify api with token at cache path = {cache_path}")
 
     return spotify_api
 
 def currently_playing(api):
+    logging.info(f"getting currently playing info")
     playing = api.currently_playing()
     return playing
 
@@ -48,6 +56,7 @@ def currently_playing_song_name(playing):
 
 def currently_playing_album_art(playing):
 
+    logging.info(f"downloading album art")
     def download_album_art(url):
         with httpx.Client() as client:
             response = client.get(url)
@@ -61,11 +70,16 @@ def currently_playing_album_art(playing):
             images = playing.get("item", {}).get("album", {}).get("images", [])
             for image in images:
                 if image.get("height") == 300:
-                    return download_album_art(image.get("url"))
+                    try:
+                        return download_album_art(image.get("url"))
+                    except Exception:
+                        logging.error("Failed to download album art")
+                        return None
 
     return None
 
 def currently_playing_device(api):
+    logging.info(f"getting devices")
     devices = api.devices()
 
     for device in devices.get("devices", []):
@@ -75,7 +89,7 @@ def currently_playing_device(api):
     return None
 
 
-def spotify_thread(username, excluded_devices, art_queue, spotify_thread_event):
+def spotify_thread(username, cache_path, excluded_devices, art_queue, spotify_thread_event):
     def alert_main(song_name=None, album_art=None):
         if album_art is None or device is None:
             logging.info(f"Informing main thread that nothing is playing")
@@ -89,7 +103,9 @@ def spotify_thread(username, excluded_devices, art_queue, spotify_thread_event):
             if not spotify_thread_event.is_set():
                 spotify_thread_event.set()
 
-    api = start_api(username)
+    logging.info(f"thread cache path = {cache_path}")
+    #TODO handle when we fail to get the api, try again in a bit
+    api = start_api(username, cache_path)
     last_song_name = None
 
     while(True):
@@ -99,12 +115,17 @@ def spotify_thread(username, excluded_devices, art_queue, spotify_thread_event):
 
         except (requests.exceptions.HTTPError, spotipy.exceptions.SpotifyException, requests.exceptions.ReadTimeout) as e:
             # refresh in case our token expired. Next call will then succeed
-            api = start_api(username)
-            logging.error(f"failed to get currently playing device info from spotify {e}")
+            #TODO handle when we timeout refreshing the api here
+            #TODO handle when we fail to get the api, try again in a bit
+            api = start_api(username, cache_path)
+            logging.error(f"failed to get currently playing info from spotify {e}")
+            # clear song info to reset
+            last_song_name = None
+            alert_main()
+            pass
 
         else:
             song_name = currently_playing_song_name(playing)
-            album_art = currently_playing_album_art(playing)
             if device in excluded_devices:
                 # act like nothing is playing
                 last_song_name = None
@@ -114,14 +135,17 @@ def spotify_thread(username, excluded_devices, art_queue, spotify_thread_event):
                 # song is still playing nothing to do
                 pass
 
-            elif album_art is None or device is None:
+            elif song_name is None or device is None:
                 # either failed to get some info, or no longer playing
                 last_song_name = None
                 alert_main()
             else:
-                # we have song info to alert the main thread about
-                last_song_name = song_name
-                alert_main(song_name, album_art)
+                # we have new song info to alert the main thread about
+                # retrieve the album art now
+                album_art = currently_playing_album_art(playing)
+                if album_art is not None:
+                    last_song_name = song_name
+                    alert_main(song_name, album_art)
 
         # don't poll too aggressively
         time.sleep(3)
