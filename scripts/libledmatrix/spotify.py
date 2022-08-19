@@ -32,7 +32,7 @@ def start_api(username, cache_path=None):
         if cache_path is None:
             os.remove(f".cache-{username}")
         else:
-            os.remove(f"{cache_path}/.cache-{username}")
+            os.remove(cache_path)
         token = util.prompt_for_user_token(username, scope, cache_path=cache_path)
 
     spotify_api = spotipy.Spotify(auth=token, retries=10, status_retries=10, backoff_factor=1.5)
@@ -103,9 +103,19 @@ def spotify_thread(username, cache_path, excluded_devices, art_queue, spotify_th
             if not spotify_thread_event.is_set():
                 spotify_thread_event.set()
 
-    logging.info(f"thread cache path = {cache_path}")
-    #TODO handle when we fail to get the api, try again in a bit
-    api = start_api(username, cache_path)
+    def refresh_api(username, cache_path):
+        while True:
+            try:
+                api = start_api(username, cache_path)
+            except Exception as e:
+                logging.error(f"failed to refresh api {e}. Clearing event and Trying again in 30 seconds")
+                alert_main()
+                time.sleep(30)
+            else:
+                return api
+
+
+    api = refresh_api(username, cache_path)
     last_song_name = None
 
     while(True):
@@ -113,16 +123,13 @@ def spotify_thread(username, cache_path, excluded_devices, art_queue, spotify_th
             playing = currently_playing(api)
             device = currently_playing_device(api)
 
-        except (requests.exceptions.HTTPError, spotipy.exceptions.SpotifyException, requests.exceptions.ReadTimeout) as e:
+        except Exception as e:
             # refresh in case our token expired. Next call will then succeed
-            #TODO handle when we timeout refreshing the api here
-            #TODO handle when we fail to get the api, try again in a bit
-            api = start_api(username, cache_path)
+            api = refresh_api(username, cache_path)
             logging.error(f"failed to get currently playing info from spotify {e}")
             # clear song info to reset
             last_song_name = None
             alert_main()
-            pass
 
         else:
             song_name = currently_playing_song_name(playing)
@@ -141,11 +148,15 @@ def spotify_thread(username, cache_path, excluded_devices, art_queue, spotify_th
                 alert_main()
             else:
                 # we have new song info to alert the main thread about
-                # retrieve the album art now
+                # retrieve the album art now.
                 album_art = currently_playing_album_art(playing)
                 if album_art is not None:
                     last_song_name = song_name
                     alert_main(song_name, album_art)
+                else:
+                    last_song_name = None
+                    alert_main()
+
 
         # don't poll too aggressively
         time.sleep(3)
