@@ -164,7 +164,7 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
             # move to the next frameset if the current frameset has been shown enough
             # but only if we were actually displaying it
             # if spotify is playing we aren't actually showing the epochs that are being enqueued
-            if num_epochs == cfg.epochs_per_frameset and not spotify_playing.is_set():
+            if num_epochs >= cfg.epochs_per_frameset and not spotify_playing.is_set():
                 num_epochs = 0
                 frameset_index = next_index(frameset_index, frameset_list)
 
