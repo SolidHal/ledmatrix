@@ -92,9 +92,9 @@ def currently_playing_device(api):
 def spotify_thread(username, cache_path, excluded_devices, art_queue, spotify_thread_event):
     def alert_main(song_name=None, album_art=None):
         if album_art is None or device is None:
-            logging.info(f"Informing main thread that nothing is playing")
             # alert thread that nothing is playing
             if spotify_thread_event.is_set():
+                logging.info(f"Informing main thread that nothing is playing")
                 spotify_thread_event.clear()
         else:
             logging.info(f"Informing main thread that {song_name} is playing")
