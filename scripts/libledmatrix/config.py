@@ -17,7 +17,7 @@ def Matrix(refresh_rate, brightness, luminance_correct):
     # options.pwm_lsb_nanoseconds=90
     # options.scan_mode=1
     # options.pwm_dither_bits=1
-    options.pwm_bits=6 # limit color space <1..11> 11 is default
+    options.pwm_bits=8 # limit color space <1..11> 11 is default
     options.pwm_lsb_nanoseconds=130
     options.limit_refresh_rate_hz=refresh_rate
 
@@ -43,6 +43,9 @@ class Config():
     # display options
     fps = 6 # fps for animations on the display
     framerate_fraction = refresh_rate / fps
+
+    # image_processing options
+    max_frames = 100 # maximum number of frames in a gif. Any larger and we start having processing issues
 
     # weather overlay options
     weather_api_key = None

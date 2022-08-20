@@ -9,14 +9,21 @@ async def get_weather(api_key, lat, lon):
     # TODO add configurable units
     units = "imperial"
     URL = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units={units}&appid={api_key}"
-    async with httpx.AsyncClient() as client:
-        response = await client.get(URL)
-        if response.status_code != 200:
-            logging.info(
-                f"Failed to get weather info: {response}, api_key = {api_key}, lat = {lat}, lon = {lon}"
-            )
-            return None
-        return response.json()
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(URL)
+            if response.status_code != 200:
+                logging.error(
+                    f"Failed to get weather info: {response}, api_key = {api_key}, lat = {lat}, lon = {lon}"
+                )
+                return None
+            return response.json()
+    except Exception as e:
+        logging.error(
+            f"Failed to get weather info with exception {e}"
+        )
+        return None
+
 
 
 # takes the weather data and maps it to the corresponding glyph in the weather icon font

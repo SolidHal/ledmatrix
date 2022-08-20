@@ -36,9 +36,10 @@ def process_images(cfg, image_dir: pathlib.Path):
             fill_matrix = False
             # pre process our frames so we can dedicate our resources to displaying them later
             frames = image_processing.centerfit_gif(im, cfg.matrix, fill_matrix)
+            frames = image_processing.optimize_frame_count(frames, cfg.max_frames)
             logging.info(f"Processed {f} as a gif with {len(frames)} frames")
 
-            frameset = FrameSet(frames, dom_colors)
+            frameset = FrameSet(frames, dom_colors, f)
             frameset_list.append(frameset)
 
         else:
@@ -48,7 +49,7 @@ def process_images(cfg, image_dir: pathlib.Path):
             frames = image_processing.centerfit_image(im, cfg.matrix, fill_matrix)
             logging.info(f"Processed {f} as a static image with {len(frames)} frames")
 
-            frameset = FrameSet(frames, dom_colors)
+            frameset = FrameSet(frames, dom_colors, f)
             frameset_list.append(frameset)
 
         im.close()

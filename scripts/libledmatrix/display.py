@@ -14,15 +14,19 @@ from . import config
 
 
 class FrameSet():
-    def __init__(self, frames, colors):
+    def __init__(self, frames, colors, filename):
         self._frames = frames
         self._colors = colors
+        self._filename = filename
 
     def frames(self):
         return self._frames
 
     def colors(self):
         return self._colors
+
+    def filename(self):
+        return self._filename
 
     def is_static(self):
         if len(self._frames) > 1:
@@ -133,11 +137,12 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
     async def prepare_canvases(cfg, frameset_list, canvases_queue, cur_epoch, ready_event, spotify_playing):
         logging.info("Starting prepare_canvases loop")
 
-        async def enqueue(frames, colors):
-            canvases = await image_processing.frames_to_canvases(frames, cfg.matrix, overlays=[overlay.overlay_clock, overlay.overlay_weather], overlay_args=(cfg, colors, cur_epoch))
-            logging.info(f"Putting canvases on the queue at cur_epoch {cur_epoch}")
+        async def enqueue(frameset):
+            logging.info(f"Preparing canvases at cur_epoch {cur_epoch} for file {frameset.filename()} with {len(frameset.frames())} frames")
+            canvases = await image_processing.frames_to_canvases(frameset.frames(), cfg.matrix, overlays=[overlay.overlay_clock, overlay.overlay_weather], overlay_args=(cfg, frameset.colors(), cur_epoch))
+            logging.info(f"Putting canvases on the queue at cur_epoch {cur_epoch} for file {frameset.filename()} with {len(frameset.frames())} frames")
             await canvases_queue.put(canvases)
-            logging.info(f"Put canvases on the queue at cur_epoch {cur_epoch}")
+            logging.info(f"Put canvases on the queue at cur_epoch {cur_epoch} for file {frameset.filename()} with {len(frameset.frames())} frames")
             cur_epoch.next()
 
         # wait 3 epochs before switching to the next frameset
@@ -149,9 +154,9 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
         # prepare 2 cur_epochs before we let the consumer know we are ready
         # this is to handle the case where we start at 11:40:59
         # and the consumer immediately needs the next cur_epoch
-        await enqueue(frameset_list[frameset_index].frames(), frameset_list[frameset_index].colors())
+        await enqueue(frameset_list[frameset_index])
         num_epochs+=1
-        await enqueue(frameset_list[frameset_index].frames(), frameset_list[frameset_index].colors())
+        await enqueue(frameset_list[frameset_index])
         num_epochs+=1
 
         logging.info("Setting ready")
@@ -165,7 +170,7 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
                 num_epochs = 0
                 frameset_index = next_index(frameset_index, frameset_list)
 
-            await enqueue(frameset_list[frameset_index].frames(), frameset_list[frameset_index].colors())
+            await enqueue(frameset_list[frameset_index])
             num_epochs+=1
 
     async def prepare_spotify(cfg, spotify_canvases_queue, cur_epoch, spotify_playing):

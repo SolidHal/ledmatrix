@@ -91,6 +91,17 @@ def centerfit_gif(gif, matrix, fill_matrix):
         frames.append(frame)
     return frames
 
+def optimize_frame_count(frames, max_frames):
+    def do_optimize(frames):
+        # remove every other frame
+        return frames[::2]
+
+    while (len(frames) > max_frames):
+        frames = do_optimize(frames)
+
+    return frames
+
+
 async def frames_to_canvases(frames, matrix, overlays=[], overlay_args=()):
     # Process the provided frames to a set of canvases
     # apply any provided overlays
