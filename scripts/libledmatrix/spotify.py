@@ -43,7 +43,7 @@ def start_api(username, cache_path=None):
     return spotify_api
 
 def currently_playing(api):
-    logging.info(f"getting currently playing info")
+    logging.debug(f"getting currently playing info")
     playing = api.currently_playing()
     return playing
 
@@ -79,7 +79,7 @@ def currently_playing_album_art(playing):
     return None
 
 def currently_playing_device(api):
-    logging.info(f"getting devices")
+    logging.debug(f"getting devices")
     devices = api.devices()
 
     for device in devices.get("devices", []):
