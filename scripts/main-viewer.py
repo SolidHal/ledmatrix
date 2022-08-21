@@ -6,6 +6,7 @@ import sys
 import os
 import logging
 import pathlib
+import random
 
 import click
 from PIL import Image, GifImagePlugin
