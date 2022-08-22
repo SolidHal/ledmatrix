@@ -35,7 +35,7 @@ def Matrix(refresh_rate, brightness, luminance_correct):
 class Config():
     ## Options ##
     # matrix options
-    brightness = 80
+    brightness = 100
     luminance_correct=True
     # anything below 100 looks flickery
     refresh_rate=100
