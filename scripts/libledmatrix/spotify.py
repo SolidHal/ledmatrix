@@ -35,7 +35,7 @@ def start_api(username, cache_path=None):
             os.remove(cache_path)
         token = util.prompt_for_user_token(username, scope, cache_path=cache_path)
 
-    spotify_api = spotipy.Spotify(auth=token, retries=10, status_retries=10, backoff_factor=1.5)
+    spotify_api = spotipy.Spotify(auth=token, retries=10, status_retries=10, backoff_factor=1.5, requests_timeout=20)
 
 
     logging.info(f"started spotify api with token at cache path = {cache_path}")
