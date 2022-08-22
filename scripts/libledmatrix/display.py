@@ -240,6 +240,7 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
         logging.info("in framebuffer_handler")
         cur_frame = 0
         set_still = False
+        old_spoityf_canvas_list = None
         spotify_canvas_list = None
         # let the producer prepare some canvases first
         await ready_event.wait()
@@ -265,6 +266,7 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
                 # otherwise we have no way to tell why we don't yet have a canvas on the queue
                 # it could be that music stopped while we were waiting
                 # or the same song is still playing
+                old_spotify_canvas_list = spotify_canvas_list
                 spotify_canvas_list = None
                 try:
                     spotify_canvas_list = await asyncio.wait_for(spotify_canvases_queue.get(), 2)
@@ -272,9 +274,11 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
                     pass
                 if spotify_canvas_list is not None:
                     # we have some album art, show it.
-                    old_canvas = await SwapOnVSync(spotify_canvas_list[0], 1)
+                    await SwapOnVSync(spotify_canvas_list[0], 1)
                     # clean up unused spotify canvases
-                    DeleteCanvases([old_canvas], cfg)
+                    # can't just delete what we swapped out, since the old canvas
+                    # could be from the other producer
+                    DeleteCanvases(old_spotify_canvas_list, cfg)
 
 
             # continue draining the main queue, even if we aren't showing the canvases
