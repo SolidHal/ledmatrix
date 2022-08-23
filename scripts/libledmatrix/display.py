@@ -2,8 +2,11 @@
 import asyncio
 import logging
 import io
+import os
 import threading
 import queue
+import pathlib
+import pickle
 
 from PIL import Image, GifImagePlugin
 
@@ -324,3 +327,68 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
         await asyncio.gather(producer, spotify_producer, consumer)
 
     asyncio.run(run(cfg, frameset_list))
+
+
+
+def process_images(cfg, image_dir: pathlib.Path):
+    p = image_dir.glob('**/*')
+    image_files = [x for x in p if x.is_file()]
+
+    frameset_list = []
+
+    processed_image_cache = image_dir / "processed_cache"
+    processed_image_cache.mkdir(exist_ok=True)
+
+    frameset_extension = "frameset"
+    p = processed_image_cache.glob('**/*')
+    processed_image_cache_files = [x.name for x in p if x.is_file()]
+
+    for f in image_files:
+        cached_image_name = f"{f.stem}.{frameset_extension}"
+        cached_image_path = processed_image_cache / cached_image_name
+
+        if cached_image_name in processed_image_cache_files:
+            # load the frameset and append it
+            with open(cached_image_path, "rb") as cache:
+                frameset = pickle.load(cache)
+                frameset_list.append(frameset)
+            logging.info(f"Loaded image from cache: {cached_image_path} with {len(frameset.frames())} frames")
+
+        else:
+            im = Image.open(f)
+            if hasattr(im, "n_frames"):
+                # then we are working with a gif
+                # get the dominant colors before converting the gif to avoid
+                # the padding from altering which colors are dominant
+                dom_colors = image_color.dominant_colors_gif(im)
+                fill_matrix = False
+                # pre process our frames so we can dedicate our resources to displaying them later
+                frames = image_processing.centerfit_gif(im, cfg.matrix, fill_matrix)
+                frames = image_processing.optimize_frame_count(frames, cfg.max_frames)
+                logging.info(f"Processed {f} as a gif with {len(frames)} frames")
+
+                frameset = FrameSet(frames, dom_colors, f)
+
+                with open(cached_image_path, "wb") as cache:
+                    logging.info(f"Caching to {cached_image_path}")
+                    pickle.dump(frameset, cache)
+
+                frameset_list.append(frameset)
+
+            else:
+                # then we are working with a static image
+                dom_colors = image_color.dominant_colors(im)
+                fill_matrix = False
+                frames = image_processing.centerfit_image(im, cfg.matrix, fill_matrix)
+                logging.info(f"Processed {f} as a static image with {len(frames)} frames")
+
+                frameset = FrameSet(frames, dom_colors, f)
+
+                with open(cached_image_path, "wb") as cache:
+                    logging.info(f"Caching to {cached_image_path}")
+                    pickle.dump(frameset, cache)
+
+                frameset_list.append(frameset)
+            im.close()
+
+    return frameset_list

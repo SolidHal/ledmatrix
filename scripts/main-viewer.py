@@ -13,55 +13,17 @@ from PIL import Image, GifImagePlugin
 
 from libledmatrix import spotify
 from libledmatrix import display, image_color, image_processing
-from libledmatrix.display import FrameSet
 #TODO importing config before other modules breaks imports for some reason
 from libledmatrix import config
 
 logging.basicConfig(level=logging.INFO,)
 
 
-def process_images(cfg, image_dir: pathlib.Path):
-    p = image_dir.glob('**/*')
-    image_files = [x for x in p if x.is_file()]
-
-    frameset_list = []
-
-    for f in image_files:
-        im = Image.open(f)
-
-        if hasattr(im, "n_frames"):
-            # then we are working with a gif
-            # get the dominant colors before converting the gif to avoid
-            # the padding from altering which colors are dominant
-            dom_colors = image_color.dominant_colors_gif(im)
-            fill_matrix = False
-            # pre process our frames so we can dedicate our resources to displaying them later
-            frames = image_processing.centerfit_gif(im, cfg.matrix, fill_matrix)
-            frames = image_processing.optimize_frame_count(frames, cfg.max_frames)
-            logging.info(f"Processed {f} as a gif with {len(frames)} frames")
-
-            frameset = FrameSet(frames, dom_colors, f)
-            frameset_list.append(frameset)
-
-        else:
-            # then we are working with a static image
-            dom_colors = image_color.dominant_colors(im)
-            fill_matrix = False
-            frames = image_processing.centerfit_image(im, cfg.matrix, fill_matrix)
-            logging.info(f"Processed {f} as a static image with {len(frames)} frames")
-
-            frameset = FrameSet(frames, dom_colors, f)
-            frameset_list.append(frameset)
-
-        im.close()
-
-    return frameset_list
-
-
 def run(cfg, image_dir_path):
     # ensure we can connect to spotify
     # spotify.start_api(cfg.spotify_api_username, cfg.spotify_api_token_cache_path)
-    frameset_list = process_images(cfg, image_dir_path)
+    frameset_list = display.process_images(cfg, image_dir_path)
+    random.shuffle(frameset_list)
     if len(frameset_list) < 1:
         raise RuntimeException(f"No loadable images found in {image_dir_path}")
 

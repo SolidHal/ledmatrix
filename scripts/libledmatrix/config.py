@@ -21,6 +21,8 @@ def Matrix(refresh_rate, brightness, luminance_correct):
     options.pwm_lsb_nanoseconds=130
     options.limit_refresh_rate_hz=refresh_rate
 
+    options.drop_privileges = False
+
     matrix = RGBMatrix(options = options)
     matrix.brightness = brightness
     matrix.luminanceCorrect = luminance_correct
