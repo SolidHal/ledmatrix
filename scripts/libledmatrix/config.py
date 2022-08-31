@@ -45,10 +45,10 @@ class Config():
     # display options
     fps = 6 # fps for animations on the display
     framerate_fraction = refresh_rate / fps
-    epochs_per_frameset = 2 # number of epochs to show an image/gif for
+    epochs_per_frameset = 4 # number of epochs to show an image/gif for
 
     # image_processing options
-    max_frames = 100 # maximum number of frames in a gif. Any larger and we start having processing issues
+    max_frames = 80 # maximum number of frames in a gif. Any larger and we start having processing issues
 
     # weather overlay options
     weather_api_key = None

@@ -159,6 +159,8 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
         num_epochs+=1
         await enqueue(frameset_list[frameset_index])
         num_epochs+=1
+        await enqueue(frameset_list[frameset_index])
+        num_epochs+=1
 
         logging.info("Setting ready")
         ready_event.set()
