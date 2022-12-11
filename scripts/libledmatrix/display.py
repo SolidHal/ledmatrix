@@ -333,16 +333,18 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
 
 
 def process_images(cfg, image_dir: pathlib.Path):
-    p = image_dir.glob('**/*')
-    image_files = [x for x in p if x.is_file()]
-
-    frameset_list = []
-
     processed_image_cache = image_dir / "processed_cache"
     processed_image_cache.mkdir(exist_ok=True)
 
+    p = image_dir.glob('**/*')
+    # include all image files, excluding our frameset cache
+    image_files = [x for x in p if (x.is_file() and not x.is_relative_to(processed_image_cache))]
+
+    frameset_list = []
+
+
     frameset_extension = "frameset"
-    p = processed_image_cache.glob('**/*')
+    p = processed_image_cache.glob('*.*')
     processed_image_cache_files = [x.name for x in p if x.is_file()]
 
     for f in image_files:
