@@ -407,8 +407,8 @@ def adaptive_brightness(cfg):
         return
 
     dtnow = datetime.datetime.now()
-    sunrise = weather.to_sunrise(cfg.curweather)
-    sunset = weather.to_sunset(cfg.curweather)
+    sunrise = weather.to_sunrise(cfg.cached_weather)
+    sunset = weather.to_sunset(cfg.cached_weather)
     new_brightness  = 0
 
     # if before sunrise, or after sunset, set to minimum brightness
