@@ -303,6 +303,7 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
                 cur_epoch = epoch.Epoch()
                 logging.info(f"swapped to new cur_epoch {cur_epoch}")
                 if cfg.cached_weather is not None:
+                    adaptive_brightness(cfg)
 
 
     async def run(cfg, frameset_list):
