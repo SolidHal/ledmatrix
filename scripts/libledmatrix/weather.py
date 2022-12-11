@@ -65,10 +65,10 @@ def to_temp(weather_data):
 
 # assumes weather data is not none
 def to_sunrise(weather_data):
-    sunrise_time = datetime.datetime.fromtimestamp(weather_data["main"]["sunrise"])
+    sunrise_time = datetime.datetime.fromtimestamp(weather_data["main"]["sys"]["sunrise"])
     return sunrise_time
 
 # assumes weather data is not none
 def to_sunset(weather_data):
-    sunset_time = datetime.datetime.fromtimestamp(weather_data["main"]["sunset"])
+    sunset_time = datetime.datetime.fromtimestamp(weather_data["main"]["sys"]["sunset"])
     return sunset_time
