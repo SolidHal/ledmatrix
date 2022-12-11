@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import asyncio
+import datetime
 import logging
 import io
 import os
@@ -11,7 +12,7 @@ import pickle
 from PIL import Image, GifImagePlugin
 
 from . import spotify
-from . import image_processing, image_color, overlay, epoch
+from . import image_processing, image_color, overlay, epoch, weather
 #TODO importing config before other modules breaks imports for some reason
 from . import config
 
@@ -301,6 +302,8 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
                 set_still = False
                 cur_epoch = epoch.Epoch()
                 logging.info(f"swapped to new cur_epoch {cur_epoch}")
+                if cfg.cached_weather is not None:
+
 
     async def run(cfg, frameset_list):
         # keep queue small to avoid delays in external updates
@@ -396,3 +399,35 @@ def process_images(cfg, image_dir: pathlib.Path):
             im.close()
 
     return frameset_list
+
+def adaptive_brightness(cfg):
+    if cfg.cur_weather is None:
+        logging.info(f"No weather data, not adjusting brightness")
+        return
+
+    dtnow = datetime.datetime.now()
+    sunrise = weather.to_sunrise(cfg.curweather)
+    sunset = weather.to_sunset(cfg.curweather)
+    new_brightness  = 0
+
+    # if before sunrise, or after sunset, set to minimum brightness
+    # if after sunrise, and before sunset set to full brightness
+    # if within 1 hour after sunrise, or 1 hour before sunset, set to partial brightness
+    if dtnow > sunrise and dtnow < sunset:
+        if dtnow > (sunrise + cfg.partial_delta) and dtnow < (sunset - cfg.partial_delta):
+            # then daytime, use full brightness
+            new_brightness = cfg.brightness
+        else:
+            # then dawn/dusk, use partial brightness
+            new_brightness = cfg.partial_brightness
+    else:
+        # then nighttime, use minimum brightness
+        new_brightness = cfg.nighttime_brightness
+
+    if cfg.matrix.brightness != new_brightness:
+        logging.info(f"Set matrix brightness to {new_brightness}")
+        # setting the matrix brightness also updates the brightness of all
+        # created canvases in the cpp code
+        cfg.matrix.brightness = new_brightness
+
+    return

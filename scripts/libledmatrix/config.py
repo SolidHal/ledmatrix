@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import datetime
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 
 def Matrix(refresh_rate, brightness, luminance_correct):
@@ -64,6 +64,20 @@ class Config():
     spotify_api_username = None
     spotify_api_token_cache_path = None
     spotify_api_excluded_devices = []
+
+    # adaptive brightness options
+
+    # before sunrise, after sunset set the display to this brightness
+    nighttime_brightness = brightness - 50
+    if nighttime_brightness < 1:
+        raise RuntimeError(f"nighttime_brightness {nighttime_brightness} cannot be < 1")
+
+    # time before sunset, after sunrise to partially dim the display
+    partial_delta = datetime.timedelta(hours = 1)
+    partial_brightness = brightness - 20
+    if partial_brightness < 1:
+        raise RuntimeError(f"partial_brightness {partial_brightness} cannot be < 1")
+
 
     ## Config Global Storage ##
     # weather overlay storage

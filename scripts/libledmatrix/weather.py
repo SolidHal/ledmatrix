@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import datetime
 import logging
 
 import httpx
@@ -27,6 +28,7 @@ async def get_weather(api_key, lat, lon):
 
 
 # takes the weather data and maps it to the corresponding glyph in the weather icon font
+# assumes weather data is not none
 def to_icon(weather_data):
     icon_id_to_font_code = {"01d": "A",
                             "01n": "B",
@@ -53,8 +55,20 @@ def to_icon(weather_data):
     return icon_id_to_font_code.get(icon_id)
 
 
+# assumes weather data is not none
 def to_temp(weather_data):
     temp = weather_data["main"]["temp"]
     temp_str = str(int(temp))
     temp_str = temp_str.rjust(2)
     return temp_str
+
+
+# assumes weather data is not none
+def to_sunrise(weather_data):
+    sunrise_time = datetime.datetime.fromtimestamp(weather_data["main"]["sunrise"])
+    return sunrise_time
+
+# assumes weather data is not none
+def to_sunset(weather_data):
+    sunset_time = datetime.datetime.fromtimestamp(weather_data["main"]["sunset"])
+    return sunset_time
