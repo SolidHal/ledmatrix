@@ -402,7 +402,7 @@ def process_images(cfg, image_dir: pathlib.Path):
     return frameset_list
 
 def adaptive_brightness(cfg):
-    if cfg.cur_weather is None:
+    if cfg.cached_weather is None:
         logging.info(f"No weather data, not adjusting brightness")
         return
 
