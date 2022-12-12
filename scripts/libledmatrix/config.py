@@ -37,7 +37,7 @@ def Matrix(refresh_rate, brightness, luminance_correct):
 class Config():
     ## Options ##
     # matrix options
-    brightness = 100
+    brightness = 80
     luminance_correct=True
     # anything below 100 looks flickery
     refresh_rate=100
@@ -68,13 +68,13 @@ class Config():
     # adaptive brightness options
 
     # before sunrise, after sunset set the display to this brightness
-    nighttime_brightness = brightness - 50
+    nighttime_brightness = 20
     if nighttime_brightness < 1:
         raise RuntimeError(f"nighttime_brightness {nighttime_brightness} cannot be < 1")
 
     # time before sunset, after sunrise to partially dim the display
     partial_delta = datetime.timedelta(hours = 1)
-    partial_brightness = brightness - 20
+    partial_brightness = brightness - 30
     if partial_brightness < 1:
         raise RuntimeError(f"partial_brightness {partial_brightness} cannot be < 1")
 

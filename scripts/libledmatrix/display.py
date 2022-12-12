@@ -251,6 +251,10 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
         # let the producer prepare some canvases first
         await ready_event.wait()
         logging.info(f"Starting framebuffer_handler loop at cur_epoch {cur_epoch}")
+        # update brightness now that we likely have sunset/sunrise data
+        # TODO: BUG: the first epoch still uses the default brightness, which is annoying
+        if cfg.cached_weather is not None:
+            adaptive_brightness(cfg)
         old_canvases = None
         canvases = await canvases_queue.get()
         while(True):
