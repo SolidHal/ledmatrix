@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-
+import asyncio
 import time
 import sys
 import os
@@ -27,11 +27,20 @@ def run(cfg, image_dir_path):
     if len(frameset_list) < 1:
         raise RuntimeException(f"No loadable images found in {image_dir_path}")
 
+    logging.info("converting frames to canavses....")
+    canvases = []
+    # process the framesets into canvases, if we have < 360 frames, repeat the set until we have 360
+    for frameset in frameset_list:
+        c = image_processing.frames_to_canvases_sync(frameset.frames(), cfg.matrix)
+        # if we have less than 360 frames, append the set until we have > 360
+        for i in range(0, 360//len(frameset.frames())):
+            canvases = canvases + c
 
-    #TODO provide way load/store preprocessed gifs on disk
+    logging.info("frames converted to canvases")
+
     try:
         print("Press CTRL-C to stop.")
-        display.frameset_overlaid_and_spotify(cfg, frameset_list)
+        display.frameset_and_spotify(cfg, canvases)
 
     except KeyboardInterrupt:
         sys.exit(0)
@@ -41,15 +50,6 @@ def run(cfg, image_dir_path):
 
 @click.command()
 @click.option("--image_dir", type=str, required=True, help="path to the directory of images to display")
-@click.option('--weather_api_key', required=True,
-              default=lambda: os.environ.get('OPENWEATHER_API_KEY', ''),
-              show_default='OPENWEATHER_API_KEY envvar')
-@click.option('--weather_api_lat', required=True,
-              default=lambda: os.environ.get('OPENWEATHER_API_LAT', ''),
-              show_default='OPENWEATHER_API_LAT envvar')
-@click.option('--weather_api_lon', required=True,
-              default=lambda: os.environ.get('OPENWEATHER_API_LON', ''),
-              show_default='OPENWEATHER_API_LON envvar')
 @click.option('--spotify_api_username', required=True,
               default=lambda: os.environ.get('SPOTIFY_API_USERNAME', ''),
               show_default='SPOTIFY_API_USERNAME envvar')
@@ -59,14 +59,17 @@ def run(cfg, image_dir_path):
 @click.option('--spotify_api_excluded_devices', required=False,
               default=lambda: os.environ.get('SPOTIFY_API_EXCLUDED_DEVICES', ''),
               show_default='SPOTIFY_API_EXCLUDED_DEVICES envvar')
-def main(image_dir, weather_api_key, weather_api_lat, weather_api_lon, spotify_api_username, spotify_api_token_cache_path, spotify_api_excluded_devices):
+def main(image_dir, spotify_api_username, spotify_api_token_cache_path, spotify_api_excluded_devices):
     cfg = config.Config()
-    cfg.max_frames = 80 # any larger, and we can't process fast enough
-    cfg.weather_api_key = weather_api_key
-    cfg.weather_api_lat = weather_api_lat
-    cfg.weather_api_lon = weather_api_lon
     cfg.spotify_api_username = spotify_api_username
     cfg.spotify_api_token_cache_path = spotify_api_token_cache_path
+
+    # no weather data, so just use a reasonable default for brightness
+    cfg.matrix.brightness = cfg.partial_brightness
+
+    # show each frameset for roughly a minute
+    # at ~6 fps for gifs, that means we can show 6*60=360 frames
+    cfg.max_frames = 360
 
     if isinstance(spotify_api_excluded_devices, list):
         cfg.spotify_api_excluded_devices = spotify_api_excluded_devices
@@ -83,3 +86,4 @@ def main(image_dir, weather_api_key, weather_api_lat, weather_api_lon, spotify_a
 
 if __name__ == "__main__":
     main()
+

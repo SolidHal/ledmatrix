@@ -121,3 +121,13 @@ async def frames_to_canvases(frames, matrix, overlays=[], overlay_args=()):
 
     return canvases
 
+
+def frames_to_canvases_sync(frames, matrix):
+    # Process the provided frames to a set of canvases
+    canvases = []
+    for frame in frames:
+        canvas = matrix.CreateFrameCanvas()
+        canvas.SetImage(frame)
+        canvases.append(canvas)
+    return canvases
+

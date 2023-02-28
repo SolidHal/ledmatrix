@@ -339,6 +339,130 @@ def frameset_overlaid_and_spotify(cfg, frameset_list):
     asyncio.run(run(cfg, frameset_list))
 
 
+def frameset_and_spotify(cfg, canvases):
+
+    async def prepare_spotify(cfg, spotify_canvases_queue, spotify_playing):
+        logging.info("Starting prepare_spotify loop")
+
+        q = queue.Queue(1)
+        spotify_thread_event = threading.Event()
+
+        logging.info(f"prepare cache path = {cfg.spotify_api_token_cache_path}")
+
+        spotify_t = threading.Thread(target=spotify.spotify_thread, args=(cfg.spotify_api_username, cfg.spotify_api_token_cache_path, cfg.spotify_api_excluded_devices, q, spotify_thread_event), daemon=True)
+        spotify_t.start()
+
+
+        async def enqueue(album_art):
+            async def process_image(album_art):
+                loop = asyncio.get_event_loop()
+                bytes_album_art = await loop.run_in_executor(None, io.BytesIO, album_art)
+                pil_album_art = await loop.run_in_executor(None, Image.open, bytes_album_art)
+                frames = await loop.run_in_executor(None, image_processing.centerfit_image, pil_album_art, cfg.matrix, False)
+                await loop.run_in_executor(None, pil_album_art.close)
+                return frames
+
+            frames = await process_image(album_art)
+            canvases = await image_processing.frames_to_canvases(frames, cfg.matrix)
+
+            logging.info(f"Putting spotify album art on queue")
+            await spotify_canvases_queue.put(canvases)
+            if not spotify_playing.is_set():
+                logging.info("Setting spotify playing")
+                spotify_playing.set()
+
+
+        while(True):
+            if spotify_thread_event.is_set():
+                # get album art from thread queue and process it
+                try:
+                    album_art = q.get(block=False)
+                except queue.Empty:
+                    # no new album art to process
+                    pass
+                else:
+                    # let us get interrupted before doing the enqueue work
+                    await asyncio.sleep(0.001)
+                    await enqueue(album_art)
+            else:
+                # nothing is playing, clear our state
+                if spotify_playing.is_set():
+                    logging.info("Clearing spotify playing")
+                    spotify_playing.clear()
+
+            await asyncio.sleep(1)
+
+
+
+    async def framebuffer_handler(cfg, canvases, spotify_canvases_queue, spotify_playing):
+
+        async def SwapOnVSync(canvas, framerate_fraction):
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None,  cfg.matrix.SwapOnVSync, canvas, framerate_fraction)
+
+        def DeleteCanvases(canvas_list, cfg):
+            if not canvas_list:
+                return
+            for c in canvas_list:
+                cfg.matrix.DeleteFrameCanvas(c)
+
+        logging.info("in framebuffer_handler")
+        cur_frame = 0
+        set_still = False
+        old_spoityf_canvas_list = None
+        spotify_canvas_list = None
+        # let the producer prepare some canvases first
+        logging.info(f"Starting framebuffer_handler loop")
+
+        while(True):
+            if not spotify_playing.is_set():
+                if len(canvases) > 1:
+                    canvas = canvases[cur_frame]
+                    # blocks until it can swap in the next canvas
+                    await SwapOnVSync(canvas, cfg.framerate_fraction)
+                    cur_frame = next_index(cur_frame, canvases)
+                elif not set_still:
+                    set_still = True
+                    logging.info("Set still image")
+                    await SwapOnVSync(canvases[0], 1)
+                else:
+                    # give the producer a chance to make progress
+                    await asyncio.sleep(0.0001)
+            else:
+                # timeout waiting so we return to showing the main canvases if spotify is no longer playing
+                # otherwise we have no way to tell why we don't yet have a canvas on the queue
+                # it could be that music stopped while we were waiting
+                # or the same song is still playing
+                old_spotify_canvas_list = spotify_canvas_list
+                spotify_canvas_list = None
+                try:
+                    spotify_canvas_list = await asyncio.wait_for(spotify_canvases_queue.get(), 2)
+                except asyncio.exceptions.TimeoutError:
+                    pass
+                if spotify_canvas_list is not None:
+                    # we have some album art, show it.
+                    await SwapOnVSync(spotify_canvas_list[0], 1)
+                    # clean up unused spotify canvases
+                    # can't just delete what we swapped out, since the old canvas
+                    # could be from the other producer
+                    DeleteCanvases(old_spotify_canvas_list, cfg)
+
+    async def run(cfg, canvases):
+        spotify_canvases_queue = asyncio.Queue(1)
+        spotify_playing = asyncio.Event()
+
+        spotify_producer = asyncio.create_task(prepare_spotify(cfg=cfg,
+                                                       spotify_canvases_queue=spotify_canvases_queue,
+                                                       spotify_playing=spotify_playing))
+        consumer = asyncio.create_task(framebuffer_handler(cfg=cfg,
+                                                           canvases=canvases,
+                                                           spotify_canvases_queue=spotify_canvases_queue,
+                                                           spotify_playing=spotify_playing))
+        await asyncio.gather(spotify_producer, consumer)
+
+    asyncio.run(run(cfg, canvases))
+
+
 
 def process_images(cfg, image_dir: pathlib.Path):
     processed_image_cache = image_dir / "processed_cache"
@@ -351,7 +475,7 @@ def process_images(cfg, image_dir: pathlib.Path):
     frameset_list = []
 
 
-    frameset_extension = "frameset"
+    frameset_extension = f"{cfg.max_frames}_frame_frameset"
     p = processed_image_cache.glob('*.*')
     processed_image_cache_files = [x.name for x in p if x.is_file()]
 
